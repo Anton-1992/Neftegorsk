@@ -1,0 +1,88 @@
+[gd_scene load_steps=3 format=3 uid://stn1o2p3q4r5s]
+
+[ext_resource type="Script" path="res://scenes/level/station_node.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/ui/station_standard.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/ui/station_premium.png" id="3"]
+[ext_resource type="Texture2D" path="res://assets/ui/station_ev.png" id="4"]
+[ext_resource type="Texture2D" path="res://assets/ui/station_shark.png" id="5"]
+[ext_resource type="Texture2D" path="res://assets/ui/station_miser.png" id="6"]
+[ext_resource type="Texture2D" path="res://assets/ui/station_local.png" id="7"]
+[ext_resource type="Texture2D" path="res://assets/ui/station_green.png" id="8"]
+[ext_resource type="Texture2D" path="res://assets/ui/station_tycoon.png" id="9"]
+[ext_resource type="Texture2D" path="res://assets/ui/station_opportunist.svg" id="10"]
+
+[node name="StationNode" type="Node2D" layout_mode=3]
+script = ExtResource("1")
+
+[node name="Sprite" type="AnimatedSprite2D" parent="."]
+animation = "idle"
+frame = 0
+speed = 1.0
+playing = true
+
+[node name="CollisionShape" type="CollisionShape2D" parent="."]
+shape = CircleShape2D {
+radius = 32.0
+}
+
+[node name="SelectionRing" type="Node2D" parent="."]
+visible = false
+
+[node name="RangeIndicator" type="CollisionShape2D" parent="."]
+shape = CircleShape2D {
+radius = 150.0
+}
+disabled = true
+
+[node name="UI" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = -70.0
+offset_top = -90.0
+
+[node name="NameLabel" type="Label" parent="UI"]
+text = "ЗАПРАВКА"
+horizontal_alignment = 0
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.4, 1, 0.4, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 1
+
+[node name="PriceLabel" type="Label" parent="UI"]
+offset_top = 18.0
+text = "50.00 ₽/л"
+horizontal_alignment = 0
+theme_override_font_sizes/font_size = 15
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 1
+
+[node name="FuelBar" type="ProgressBar" parent="UI"]
+offset_top = 38.0
+offset_right = 140.0
+min_value = 0.0
+max_value = 100.0
+value = 100.0
+
+[node name="LevelBadge" type="Label" parent="UI"]
+offset_top = -25.0
+offset_left = 80.0
+text = "Lv.1"
+horizontal_alignment = 0
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(1, 0.9, 0.2, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 1
+
+[node name="OwnerIcon" type="TextureRect" parent="UI"]
+offset_top = -30.0
+offset_left = -35.0
+custom_minimum_size = Vector2(24, 24)
+stretch_mode = 2
+visible = false
+
+[node name="Button" type="Button" parent="."]
+anchors_preset = 15
+custom_minimum_size = Vector2(80, 80)
+flat = true
+focus_mode = 0
