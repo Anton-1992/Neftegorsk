@@ -1,0 +1,270 @@
+[gd_scene load_steps=3 format=3 uid://bkq8v9j2m5n7o]
+
+[ext_resource type="Script" path="res://scripts/resources/district_data.gd" id="1"]
+[ext_resource type="Script" path="res://scenes/main_menu/main_menu.gd" id="2"]
+[ext_resource type="Texture2D" path="res://assets/ui/map_background.svg" id="3"]
+
+[node name="MainMenu" type="Control" layout_mode=3]
+script = ExtResource("2")
+
+[node name="Background" type="ColorRect" parent="." layout_mode=3]
+anchors_preset = 15
+color = Color(0.08, 0.1, 0.15, 1)
+
+[node name="MapContainer" type="Control" parent="." layout_mode=3]
+anchors_preset = 15
+offset_left = 20.0
+offset_top = 80.0
+offset_right = -20.0
+offset_bottom = -140.0
+
+[node name="MapBackground" type="TextureRect" parent="MapContainer" layout_mode=3]
+anchors_preset = 15
+texture = ExtResource("3")
+stretch_mode = 2
+
+[node name="DistrictLayer" type="Node2D" parent="MapContainer"]
+
+[node name="UILayer" type="Control" parent="." layout_mode=3]
+anchors_preset = 15
+
+[node name="TopBar" type="HBoxContainer" parent="UILayer" layout_mode=3]
+anchors_preset = 9
+offset_left = 20.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = -1780.0
+theme_override_constants/separation = 20
+
+[node name="GameTitle" type="Label" parent="TopBar"]
+text = "НЕФТЕГОРСК"
+horizontal_alignment = 0
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 36
+theme_override_colors/font_color = Color(1, 0.9, 0.3, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 2
+
+[node name="Spacer" type="Control" parent="TopBar"]
+custom_minimum_size = Vector2(0, 0)
+size_flags_horizontal = 3
+
+[node name="CurrencyDisplay" type="HBoxContainer" parent="TopBar"]
+theme_override_constants/separation = 10
+
+[node name="CashIcon" type="TextureRect" parent="CurrencyDisplay"]
+custom_minimum_size = Vector2(32, 32)
+stretch_mode = 2
+
+[node name="CashLabel" type="Label" parent="CurrencyDisplay"]
+text = "50 000 ₽"
+horizontal_alignment = 0
+theme_override_font_sizes/font_size = 24
+theme_override_colors/font_color = Color(0.4, 1, 0.4, 1)
+
+[node name="StarsIcon" type="TextureRect" parent="CurrencyDisplay"]
+custom_minimum_size = Vector2(32, 32)
+stretch_mode = 2
+
+[node name="StarsLabel" type="Label" parent="CurrencyDisplay"]
+text = "★ 0"
+horizontal_alignment = 0
+theme_override_font_sizes/font_size = 24
+theme_override_colors/font_color = Color(1, 0.9, 0.2, 1)
+
+[node name="BottomBar" type="HBoxContainer" parent="UILayer" layout_mode=3]
+anchors_preset = 12
+offset_left = 20.0
+offset_top = 1800.0
+offset_right = -20.0
+offset_bottom = -20.0
+theme_override_constants/separation = 30
+alignment = 2
+
+[node name="BtnUpgradeTree" type="Button" parent="BottomBar"]
+text = "УЛУЧШЕНИЯ"
+custom_minimum_size = Vector2(180, 60)
+theme_override_font_sizes/font_size = 20
+
+[node name="BtnSettings" type="Button" parent="BottomBar"]
+text = "НАСТРОЙКИ"
+custom_minimum_size = Vector2(180, 60)
+theme_override_font_sizes/font_size = 20
+
+[node name="BtnContinue" type="Button" parent="BottomBar"]
+text = "ПРОДОЛЖИТЬ"
+custom_minimum_size = Vector2(220, 70)
+theme_override_font_sizes/font_size = 22
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+
+[node name="DistrictInfoPanel" type="Panel" parent="UILayer" layout_mode=3]
+anchors_preset = 0
+offset_left = 20.0
+offset_top = 120.0
+offset_right = 420.0
+offset_bottom = -700.0
+visible = false
+
+[node name="DistrictInfoContent" type="VBoxContainer" parent="DistrictInfoPanel"]
+anchors_preset = 15
+offset_left = 20.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = -20.0
+theme_override_constants/separation = 15
+
+[node name="DistrictName" type="Label" parent="DistrictInfoContent"]
+text = "Деловой центр"
+horizontal_alignment = 0
+theme_override_font_sizes/font_size = 28
+theme_override_colors/font_color = Color(1, 0.9, 0.3, 1)
+
+[node name="DistrictDesc" type="Label" parent="DistrictInfoContent"]
+text = "Небоскрёбы, бизнес-центры, плотный трафик. Высокая конкуренция, дорогие аренды."
+horizontal_alignment = 0
+vertical_alignment = 1
+autowrap_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.8, 0.8, 0.9, 1)
+
+[node name="Separator1" type="HSeparator" parent="DistrictInfoContent"]
+
+[node name="DistrictStats" type="GridContainer" parent="DistrictInfoContent"]
+columns = 2
+theme_override_constants/h_separation = 20
+theme_override_constants/v_separation = 10
+
+[node name="StatLevels" type="Label" parent="DistrictStats"]
+text = "Уровней:"
+theme_override_font_sizes/font_size = 18
+
+[node name="StatLevelsVal" type="Label" parent="DistrictStats"]
+text = "4"
+horizontal_alignment = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.4, 1, 0.4, 1)
+
+[node name="StatStars" type="Label" parent="DistrictStats"]
+text = "Звёзд к следующему:"
+theme_override_font_sizes/font_size = 18
+
+[node name="StatStarsVal" type="Label" parent="DistrictStats"]
+text = "6 ★"
+horizontal_alignment = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(1, 0.9, 0.2, 1)
+
+[node name="StatDifficulty" type="Label" parent="DistrictStats"]
+text = "Сложность:"
+theme_override_font_sizes/font_size = 18
+
+[node name="StatDifficultyVal" type="Label" parent="DistrictStats"]
+text = "★★☆☆☆"
+horizontal_alignment = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(1, 0.6, 0.2, 1)
+
+[node name="BtnEnterDistrict" type="Button" parent="DistrictInfoContent"]
+text = "ВОЙТИ В РАЙОН"
+custom_minimum_size = Vector2(0, 50)
+theme_override_font_sizes/font_size = 20
+
+[node name="LevelSelectDialog" type="AcceptDialog" parent="."]
+title = "Выбор уровня"
+min_size = Vector2(500, 600)
+
+[node name="LevelSelectContainer" type="VBoxContainer" parent="LevelSelectDialog"]
+anchors_preset = 15
+offset_left = 20.0
+offset_top = 60.0
+offset_right = -20.0
+offset_bottom = -20.0
+theme_override_constants/separation = 10
+
+[node name="LevelList" type="ItemList" parent="LevelSelectContainer"]
+custom_minimum_size = Vector2(0, 400)
+select_mode = 1
+theme_override_font_sizes/font_size = 20
+theme_override_constants/icon_margin = 10
+
+[node name="BtnLevelSelectConfirm" type="Button" parent="LevelSelectContainer"]
+text = "НАЧАТЬ УРОВЕНЬ"
+custom_minimum_size = Vector2(0, 50)
+theme_override_font_sizes/font_size = 20
+
+[node name="SettingsDialog" type="AcceptDialog" parent="."]
+title = "Настройки"
+min_size = Vector2(500, 600)
+
+[node name="SettingsContainer" type="VBoxContainer" parent="SettingsDialog"]
+anchors_preset = 15
+offset_left = 30.0
+offset_top = 70.0
+offset_right = -30.0
+offset_bottom = -30.0
+theme_override_constants/separation = 20
+
+[node name="SettingsTitle" type="Label" parent="SettingsContainer"]
+text = "НАСТРОЙКИ"
+horizontal_alignment = 0
+theme_override_font_sizes/font_size = 32
+theme_override_colors/font_color = Color(1, 0.9, 0.3, 1)
+
+[node name="AudioSection" type="VBoxContainer" parent="SettingsContainer"]
+theme_override_constants/separation = 10
+
+[node name="AudioTitle" type="Label" parent="AudioSection"]
+text = "ЗВУК"
+theme_override_font_sizes/font_size = 22
+theme_override_colors/font_color = Color(0.7, 0.8, 1, 1)
+
+[node name="MusicVolume" type="HSlider" parent="AudioSection"]
+min_value = 0.0
+max_value = 1.0
+step = 0.01
+value = 0.7
+custom_minimum_size = Vector2(300, 40)
+
+[node name="SfxVolume" type="HSlider" parent="AudioSection"]
+min_value = 0.0
+max_value = 1.0
+step = 0.01
+value = 0.8
+custom_minimum_size = Vector2(300, 40)
+
+[node name="GameplaySection" type="VBoxContainer" parent="SettingsContainer"]
+theme_override_constants/separation = 10
+
+[node name="GameplayTitle" type="Label" parent="GameplaySection"]
+text = "ГЕЙМПЛЕЙ"
+theme_override_font_sizes/font_size = 22
+theme_override_colors/font_color = Color(0.7, 0.8, 1, 1)
+
+[node name="AutoSaveCheck" type="CheckBox" parent="GameplaySection"]
+text = "Автосохранение каждую минуту"
+button_pressed = true
+
+[node name="SpeedUpCheck" type="CheckBox" parent="GameplaySection"]
+text = "Ускоренное время (x2)"
+
+[node name="DataSection" type="VBoxContainer" parent="SettingsContainer"]
+theme_override_constants/separation = 10
+
+[node name="BtnResetProgress" type="Button" parent="DataSection"]
+text = "СБРОСИТЬ ПРОГРЕСС"
+custom_minimum_size = Vector2(300, 50)
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(1, 0.4, 0.4, 1)
+
+[node name="BtnCloseSettings" type="Button" parent="SettingsContainer"]
+text = "ЗАКРЫТЬ"
+custom_minimum_size = Vector2(0, 50)
+theme_override_font_sizes/font_size = 20
+
+[node name="ResetConfirmDialog" type="ConfirmationDialog" parent="."]
+title = "Подтверждение"
+text = "Вы уверены? Весь прогресс будет удалён навсегда!"
+
+[node name="NewGameDialog" type="ConfirmationDialog" parent="."]
+title = "Новая игра"
+text = "Начать новую игру? Текущий прогресс будет сохранён."

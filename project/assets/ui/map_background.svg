@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="waterGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a3a5c"/>
+      <stop offset="50%" style="stop-color:#154068"/>
+      <stop offset="100%" style="stop-color:#0d2b45"/>
+    </linearGradient>
+    <linearGradient id="landGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e2d3d"/>
+      <stop offset="100%" style="stop-color:#152535"/>
+    </linearGradient>
+    <radialGradient id="centerGlow" cx="50%" cy="30%" r="60%">
+      <stop offset="0%" style="stop-color:#2a4a6e;stop-opacity:0.3"/>
+      <stop offset="100%" style="stop-color:#152535;stop-opacity:0"/>
+    </radialGradient>
+    <filter id="blur" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3"/>
+    </filter>
+  </defs>
+  
+  <!-- Base water -->
+  <rect width="1920" height="1080" fill="url(#waterGradient)"/>
+  
+  <!-- Central glow -->
+  <ellipse cx="960" cy="320" rx="800" ry="400" fill="url(#centerGlow)" filter="url(#blur)"/>
+  
+  <!-- Neva River main channel (St. Petersburg style) -->
+  <path d="M100 200 
+           C200 180, 400 150, 600 200
+           C750 250, 850 350, 960 420
+           C1070 490, 1200 520, 1400 480
+           C1600 440, 1800 420, 1900 380
+           L1920 420 L1920 1080 L0 1080 L0 240 Z" 
+        fill="#0f2540" opacity="0.9"/>
+  
+  <!-- River highlights -->
+  <path d="M100 200 
+           C200 180, 400 150, 600 200
+           C750 250, 850 350, 960 420
+           C1070 490, 1200 520, 1400 480
+           C1600 440, 1800 420, 1900 380" 
+        stroke="#2a5a8a" stroke-width="2" fill="none" opacity="0.5"/>
+  
+  <!-- Islands (Vasilevsky, Petrograd, etc.) -->
+  <!-- Vasilevsky Island -->
+  <ellipse cx="750" cy="380" rx="180" ry="120" fill="#1e2d3d" stroke="#2a4a6e" stroke-width="1"/>
+  <ellipse cx="750" cy="380" rx="160" ry="100" fill="#1a2838"/>
+  
+  <!-- Petrograd Side -->
+  <ellipse cx="500" cy="280" rx="150" ry="100" fill="#1e2d3d" stroke="#2a4a6e" stroke-width="1"/>
+  <ellipse cx="500" cy="280" rx="130" ry="80" fill="#1a2838"/>
+  
+  <!-- Central districts -->
+  <ellipse cx="960" cy="350" rx="200" ry="140" fill="#22354a" stroke="#3a5a7a" stroke-width="1"/>
+  <ellipse cx="960" cy="350" rx="180" ry="120" fill="#1e2d3d"/>
+  
+  <!-- Southern districts -->
+  <ellipse cx="1100" cy="550" rx="250" ry="180" fill="#1e2d3d" stroke="#2a4a6e" stroke-width="1"/>
+  <ellipse cx="1100" cy="550" rx="230" ry="160" fill="#1a2838"/>
+  
+  <!-- Eastern industrial -->
+  <ellipse cx="1400" cy="450" rx="200" ry="150" fill="#253035" stroke="#3a4a55" stroke-width="1"/>
+  <ellipse cx="1400" cy="450" rx="180" ry="130" fill="#1e2828"/>
+  
+  <!-- Western suburban -->
+  <ellipse cx="300" cy="600" rx="180" ry="140" fill="#1d2d25" stroke="#2a4a3e" stroke-width="1"/>
+  <ellipse cx="300" cy="600" rx="160" ry="120" fill="#18251e"/>
+  
+  <!-- Grid lines (subtle) -->
+  <g stroke="#1a2d3d" stroke-width="0.5" opacity="0.3">
+    <line x1="0" y1="0" x2="1920" y2="0"/>
+    <line x1="0" y1="1080" x2="1920" y2="1080"/>
+    <line x1="0" y1="0" x2="0" y2="1080"/>
+    <line x1="1920" y1="0" x2="1920" y2="1080"/>
+  </g>
+  
+  <!-- District indicator circles (will be overlaid by UI) -->
+  <!-- Business Center -->
+  <circle cx="864" cy="378" r="35" fill="none" stroke="#4a7a9a" stroke-width="2" stroke-dasharray="8,4" opacity="0.6"/>
+  <!-- Historic -->
+  <circle cx="768" cy="302" r="35" fill="none" stroke="#4a7a9a" stroke-width="2" stroke-dasharray="8,4" opacity="0.6"/>
+  <!-- Residential -->
+  <circle cx="1152" cy="594" r="35" fill="none" stroke="#4a7a9a" stroke-width="2" stroke-dasharray="8,4" opacity="0.6"/>
+  <!-- Industrial -->
+  <circle cx="480" cy="648" r="35" fill="none" stroke="#4a7a9a" stroke-width="2" stroke-dasharray="8,4" opacity="0.6"/>
+  <!-- Waterfront -->
+  <circle cx="960" cy="216" r="35" fill="none" stroke="#4a7a9a" stroke-width="2" stroke-dasharray="8,4" opacity="0.6"/>
+  <!-- Suburban -->
+  <circle cx="1440" cy="810" r="35" fill="none" stroke="#4a7a9a" stroke-width="2" stroke-dasharray="8,4" opacity="0.6"/>
+  
+  <!-- Bridge hints -->
+  <g stroke="#3a5a7a" stroke-width="3" opacity="0.4">
+    <line x1="650" y1="300" x2="850" y2="400"/>  <!-- Palace Bridge area -->
+    <line x1="550" y1="250" x2="650" y2="300"/>  <!-- Trinity Bridge -->
+    <line x1="900" y1="380" x2="1050" y2="380"/> <!-- Liteyny Bridge -->
+  </g>
+</svg>

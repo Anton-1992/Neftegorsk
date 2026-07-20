@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="fuelGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFD700"/>
+      <stop offset="50%" style="stop-color:#FFA500"/>
+      <stop offset="100%" style="stop-color:#FF8C00"/>
+    </linearGradient>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="512" height="512" rx="80" fill="url(#bgGradient)"/>
+  
+  <!-- Fuel drop shape -->
+  <path d="M256 100 
+           C256 60, 210 30, 160 60 
+           C110 90, 80 150, 80 220 
+           C80 320, 256 450, 256 450 
+           C256 450, 432 320, 432 220 
+           C432 150, 402 90, 352 60 
+           C302 30, 256 60, 256 100 Z" 
+        fill="url(#fuelGradient)" stroke="#FFD700" stroke-width="4"/>
+  
+  <!-- Fuel pump nozzle -->
+  <path d="M256 180 
+           L256 280 
+           M236 280 L276 280
+           M236 260 L276 260" 
+        stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.9"/>
+  
+  <!-- Sparkles -->
+  <circle cx="200" cy="160" r="8" fill="#FFD700" opacity="0.8"/>
+  <circle cx="320" cy="140" r="5" fill="#FFD700" opacity="0.6"/>
+  <circle cx="180" cy="220" r="4" fill="#FFD700" opacity="0.7"/>
+  <circle cx="340" cy="200" r="6" fill="#FFD700" opacity="0.5"/>
+  
+  <!-- City silhouette at bottom -->
+  <path d="M0 400 
+           L50 400 L50 350 L70 350 L70 380 L90 380 L90 340 L110 340 L110 390 L130 390 L130 330
+           L150 330 L150 370 L170 370 L170 320 L190 320 L190 380 L210 380 L210 310
+           L230 310 L230 360 L250 360 L250 300 L270 300 L270 390 L290 390 L290 280
+           L310 280 L310 370 L330 370 L330 320 L350 320 L350 380 L370 380 L370 300
+           L390 300 L390 360 L410 360 L410 310 L430 310 L430 390 L450 390 L450 340
+           L470 340 L470 400 L512 400 Z" 
+        fill="#0f0f1a" opacity="0.8"/>
+</svg>
