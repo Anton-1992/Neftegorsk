@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="sharkSkin" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="50%" style="stop-color:#0f0f1a"/>
+      <stop offset="100%" style="stop-color:#1a1a2e"/>
+    </linearGradient>
+    <linearGradient id="goldTrim" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#FFD700"/>
+      <stop offset="50%" style="stop-color:#FFA500"/>
+      <stop offset="100%" style="stop-color:#FFD700"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <circle cx="128" cy="128" r="120" fill="url(#sharkSkin)" stroke="url(#goldTrim)" stroke-width="4"/>
+  
+  <!-- Shark silhouette -->
+  <g fill="#2a2a4a" filter="url(#glow)">
+    <!-- Main body -->
+    <ellipse cx="128" cy="140" rx="55" ry="35"/>
+    <!-- Dorsal fin -->
+    <path d="M128 105 Q135 115 128 135 Q121 115 128 105"/>
+    <!-- Pectoral fins -->
+    <path d="M73 140 Q60 145 55 155 Q65 150 73 140"/>
+    <path d="M183 140 Q196 145 201 155 Q191 150 183 140"/>
+    <!-- Tail -->
+    <path d="M183 140 Q200 130 210 140 Q200 150 183 140"/>
+    <!-- Eye -->
+    <circle cx="155" cy="130" r="6" fill="#FFD700"/>
+    <circle cx="156" cy="129" r="2" fill="#000"/>
+    <!-- Gills -->
+    <g stroke="#444" stroke-width="2">
+      <line x1="100" y1="130" x2="115" y2="130"/>
+      <line x1="100" y1="135" x2="115" y2="135"/>
+      <line x1="100" y1="140" x2="115" y2="140"/>
+    </g>
+    <!-- Teeth hint -->
+    <g fill="#fff" opacity="0.8">
+      <polygon points="165,140 170,135 175,140"/>
+      <polygon points="165,145 170,150 175,145"/>
+    </g>
+  </g>
+  
+  <!-- Title -->
+  <text x="128" y="220" font-family="Arial Black" font-size="20" font-weight="bold" fill="url(#goldTrim)" text-anchor="middle" stroke="#000" stroke-width="2">АКУЛА</text>
+</svg>

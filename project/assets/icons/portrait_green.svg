@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="greenBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0d251a"/>
+      <stop offset="100%" style="stop-color:#08150d"/>
+    </linearGradient>
+    <linearGradient id="emeraldTrim" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00ff88"/>
+      <stop offset="50%" style="stop-color:#00cc66"/>
+      <stop offset="100%" style="stop-color:#00ff88"/>
+    </linearGradient>
+    <linearGradient id="leafGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2d5a3d"/>
+      <stop offset="100%" style="stop-color:#1a3d2a"/>
+    </linearGradient>
+    <filter id="natureGlow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <circle cx="128" cy="128" r="120" fill="url(#greenBg)" stroke="url(#emeraldTrim)" stroke-width="4"/>
+  
+  <!-- Eco/Green - serene, connected to nature, modern eco-style -->
+  <g filter="url(#natureGlow)">
+    <!-- Organic fiber jacket -->
+    <g fill="url(#leafGrad)">
+      <ellipse cx="128" cy="170" rx="52" ry="45"/>
+      <path d="M76 130 Q90 125 128 130 Q166 125 180 130 L180 200 L76 200 Z"/>
+      <!-- Leaf buttons -->
+      <g fill="#00aa66">
+        <ellipse cx="110" cy="145" rx="6" ry="4" transform="rotate(-15 110 145)"/>
+        <ellipse cx="110" cy="160" rx="6" ry="4" transform="rotate(-15 110 160)"/>
+        <ellipse cx="110" cy="175" rx="6" ry="4" transform="rotate(-15 110 175)"/>
+      </g>
+    </g>
+    <!-- Undershirt - hemp/organic cotton -->
+    <ellipse cx="128" cy="135" rx="28" ry="15" fill="#e8f5e8"/>
+    
+    <!-- Head - calm, wise -->
+    <circle cx="128" cy="100" r="32" fill="#d8e8d8"/>
+    <!-- Hair - natural, slightly long, green tint -->
+    <path d="M96 85 Q128 60 160 85 Q150 95 128 100 Q106 95 96 85" fill="#2d4a3a"/>
+    <path d="M110 83 Q128 70 146 83" stroke="#1a3a2a" stroke-width="1" fill="none"/>
+    <!-- Leaves in hair -->
+    <g fill="#00aa66" opacity="0.9">
+      <ellipse cx="150" cy="85" rx="6" ry="3" transform="rotate(20 150 85)"/>
+      <ellipse cx="100" cy="88" rx="5" ry="2.5" transform="rotate(-25 100 88)"/>
+    </g>
+    
+    <!-- Face - serene, glowing slightly -->
+    <ellipse cx="115" cy="98" rx="7" ry="5" fill="#1a3d2a"/>
+    <ellipse cx="141" cy="98" rx="7" ry="5" fill="#1a3d2a"/>
+    <circle cx="116" cy="97" r="3" fill="#00ff88"/>
+    <circle cx="142" cy="97" r="3" fill="#00ff88"/>
+    <!-- Gentle smile -->
+    <path d="M110 112 Q128 120 146 112" stroke="#1a3d2a" stroke-width="2.5" fill="none"/>
+    <!-- Vines/tendrils on face -->
+    <path d="M85 100 Q90 95 95 100" stroke="#008855" stroke-width="1.5" fill="none"/>
+    <path d="M171 100 Q166 95 161 100" stroke="#008855" stroke-width="1.5" fill="none"/>
+    
+    <!-- Butterfly on shoulder -->
+    <g transform="translate(165, 130) scale(1.2)">
+      <ellipse cx="-4" cy="0" rx="5" ry="8" fill="#00ff88" opacity="0.8" transform="rotate(-30)"/>
+      <ellipse cx="4" cy="0" rx="5" ry="8" fill="#00ff88" opacity="0.8" transform="rotate(30)"/>
+      <ellipse cx="-4" cy="8" rx="4" ry="6" fill="#00cc66" opacity="0.7" transform="rotate(-45)"/>
+      <ellipse cx="4" cy="8" rx="4" ry="6" fill="#00cc66" opacity="0.7" transform="rotate(45)"/>
+      <circle cx="0" cy="2" r="2" fill="#1a3d2a"/>
+    </g>
+    
+    <!-- Tablet with plant data -->
+    <g transform="translate(65, 145)">
+      <rect x="0" y="0" width="30" height="40" rx="3" fill="#1a3d2a" stroke="#00aa66" stroke-width="2"/>
+      <rect x="3" y="3" width="24" height="34" fill="#0d1a0d"/>
+      <!-- Plant graph -->
+      <path d="M6 30 L9 22 L12 26 L15 18 L18 22 L21 14 L24 18" stroke="#00ff88" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="21" cy="14" r="3" fill="#00ff88"/>
+    </g>
+    
+    <!-- Floating particles/energy -->
+    <g fill="#00ff88" opacity="0.6">
+      <circle cx="50" cy="60" r="2"/>
+      <circle cx="200" cy="55" r="1.5"/>
+      <circle cx="45" cy="180" r="2"/>
+      <circle cx="205" cy="175" r="1.5"/>
+      <circle cx="80" cy="40" r="1"/>
+      <circle cx="176" cy="45" r="1"/>
+    </g>
+  </g>
+  
+  <text x="128" y="220" font-family="Arial Black" font-size="20" font-weight="bold" fill="url(#emeraldTrim)" text-anchor="middle" stroke="#000" stroke-width="2">ЭКОЛОГ</text>
+</svg>

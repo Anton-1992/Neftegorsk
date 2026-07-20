@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="tycoonBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1525"/>
+      <stop offset="100%" style="stop-color:#0d0815"/>
+    </linearGradient>
+    <linearGradient id="platinumTrim" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#E5E4E2"/>
+      <stop offset="50%" style="stop-color:#B0B0B0"/>
+      <stop offset="100%" style="stop-color:#E5E4E2"/>
+    </linearGradient>
+    <linearGradient id="goldAccent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#FFD700"/>
+      <stop offset="100%" style="stop-color:#FFA500"/>
+    </linearGradient>
+    <filter id="strongGlow">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <circle cx="128" cy="128" r="120" fill="url(#tycoonBg)" stroke="url(#platinumTrim)" stroke-width="5"/>
+  
+  <!-- Tycoon - imposing, luxurious, confident -->
+  <g filter="url(#strongGlow)">
+    <!-- Imposing shoulders -->
+    <ellipse cx="128" cy="175" rx="65" ry="40" fill="#0a0a1a"/>
+    <!-- Suit - impeccable -->
+    <path d="M63 140 L75 200 L181 200 L193 140 Z" fill="#050510"/>
+    <!-- Lapels - wide, expensive -->
+    <path d="M128 135 L85 175 L98 175 L128 150 Z" fill="#0a0a1a"/>
+    <path d="M128 135 L171 175 L158 175 L128 150 Z" fill="#0a0a1a"/>
+    <!-- Tie - silk, perfect knot -->
+    <path d="M128 135 L120 175 L128 175 L136 175 Z" fill="url(#goldAccent)"/>
+    <circle cx="128" cy="140" r="6" fill="url(#goldAccent)"/>
+    <!-- Pocket square -->
+    <path d="M165 145 L185 145 L185 165 L165 165 Z" fill="#FFD700" opacity="0.9"/>
+    <path d="M168 148 L182 148 L182 162 L168 162 Z" fill="#FFD700" opacity="0.6"/>
+    
+    <!-- Head - strong jaw, confident -->
+    <ellipse cx="128" cy="100" rx="38" ry="35" fill="#e8d8c8"/>
+    <!-- Hair - silver, perfectly styled -->
+    <path d="M90 85 Q128 60 166 85 Q155 95 128 100 Q101 95 90 85" fill="#C0C0C0"/>
+    <path d="M90 85 Q128 65 166 85" stroke="#A0A0A0" stroke-width="2" fill="none"/>
+    <!-- Face -->
+    <ellipse cx="116" cy="95" rx="7" ry="5" fill="#1a1525"/> <!-- eye -->
+    <ellipse cx="140" cy="95" rx="7" ry="5" fill="#1a1525"/> <!-- eye -->
+    <circle cx="117" cy="94" r="2" fill="#FFD700"/> <!-- pupil gold -->
+    <circle cx="141" cy="94" r="2" fill="#FFD700"/>
+    <!-- Eyebrows - commanding -->
+    <path d="M105 88 Q116 85 127 88" stroke="#1a1525" stroke-width="3" fill="none"/>
+    <path d="M129 88 Q140 85 151 88" stroke="#1a1525" stroke-width="3" fill="none"/>
+    <!-- Nose -->
+    <path d="M128 100 Q130 108 128 112" stroke="#d8c8b8" stroke-width="2" fill="none"/>
+    <!-- Mouth - slight confident smirk -->
+    <path d="M110 118 Q128 122 146 118" stroke="#1a1525" stroke-width="2.5" fill="none"/>
+    <path d="M128 118 Q128 120 138 120" stroke="#1a1525" stroke-width="1.5" fill="none"/>
+    <!-- Cufflinks visible -->
+    <circle cx="78" cy="170" r="4" fill="url(#goldAccent)"/>
+    <circle cx="178" cy="170" r="4" fill="url(#goldAccent)"/>
+    <!-- Watch -->
+    <rect x="175" y="155" width="14" height="14" rx="7" fill="url(#platinumTrim)"/>
+    <circle cx="182" cy="162" r="5" fill="#050510"/>
+    <line x1="182" y1="162" x2="182" y2="155" stroke="url(#goldAccent)" stroke-width="2"/>
+    <line x1="182" y1="162" x2="188" y2="162" stroke="url(#goldAccent)" stroke-width="1.5"/>
+  </g>
+  
+  <text x="128" y="220" font-family="Arial Black" font-size="20" font-weight="bold" fill="url(#goldAccent)" text-anchor="middle" stroke="#000" stroke-width="2">МАГНАТ</text>
+</svg>

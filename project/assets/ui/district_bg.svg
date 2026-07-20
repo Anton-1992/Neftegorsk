@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="districtBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+    <pattern id="gridPattern" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#2a2a4a" stroke-width="0.5"/>
+    </pattern>
+  </defs>
+  
+  <rect width="1920" height="1080" fill="url(#districtBg)"/>
+  <rect width="1920" height="1080" fill="url(#gridPattern)" opacity="0.3"/>
+  
+  <!-- Decorative corner elements -->
+  <g fill="none" stroke="#2a4a6e" stroke-width="2" opacity="0.2">
+    <path d="M50 50 L200 50 M50 50 L50 200"/>
+    <path d="M1870 50 L1720 50 M1870 50 L1870 200"/>
+    <path d="M50 1030 L200 1030 M50 1030 L50 880"/>
+    <path d="M1870 1030 L1720 1030 M1870 1030 L1870 880"/>
+  </g>
+</svg>

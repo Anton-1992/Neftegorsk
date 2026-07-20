@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="stationBody" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#4CAF50"/>
+      <stop offset="100%" style="stop-color:#2E7D32"/>
+    </linearGradient>
+    <linearGradient id="stationRoof" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFD700"/>
+      <stop offset="100%" style="stop-color:#FFA500"/>
+    </linearGradient>
+    <linearGradient id="pumpColor" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#FF5252"/>
+      <stop offset="100%" style="stop-color:#FF1744"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Canopy/Roof -->
+  <path d="M14 30 L114 30 L114 40 Q114 45 109 45 L19 45 Q14 45 14 40 Z" fill="url(#stationRoof)"/>
+  <path d="M14 30 L114 30 L114 40 Q114 45 109 45 L19 45 Q14 45 14 40 Z" fill="none" stroke="#FFD700" stroke-width="1"/>
+  
+  <!-- Support pillars -->
+  <rect x="20" y="40" width="12" height="50" fill="#3E8E41"/>
+  <rect x="96" y="40" width="12" height="50" fill="#3E8E41"/>
+  
+  <!-- Building body -->
+  <rect x="20" y="40" width="88" height="50" fill="url(#stationBody)"/>
+  <rect x="20" y="40" width="88" height="50" fill="none" stroke="#2E7D32" stroke-width="2"/>
+  
+  <!-- Windows -->
+  <rect x="30" y="50" width="18" height="18" fill="#E8F5E9" stroke="#2E7D32" stroke-width="1"/>
+  <rect x="55" y="50" width="18" height="18" fill="#E8F5E9" stroke="#2E7D32" stroke-width="1"/>
+  <rect x="80" y="50" width="18" height="18" fill="#E8F5E9" stroke="#2E7D32" stroke-width="1"/>
+  
+  <!-- Door -->
+  <rect x="55" y="75" width="18" height="15" fill="#1B5E20"/>
+  
+  <!-- Fuel pumps -->
+  <rect x="16" y="90" width="16" height="28" fill="url(#pumpColor)" rx="3"/>
+  <rect x="16" y="90" width="16" height="28" fill="none" stroke="#FF1744" stroke-width="1" rx="3"/>
+  <rect x="96" y="90" width="16" height="28" fill="url(#pumpColor)" rx="3"/>
+  <rect x="96" y="90" width="16" height="28" fill="none" stroke="#FF1744" stroke-width="1" rx="3"/>
+  
+  <!-- Pump handles -->
+  <path d="M24 90 L24 75 Q24 70 29 70 L34 70" stroke="#FFFFFF" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.8"/>
+  <path d="M104 90 L104 75 Q104 70 99 70 L94 70" stroke="#FFFFFF" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.8"/>
+  
+  <!-- Price display -->
+  <rect x="35" y="95" width="58" height="18" rx="4" fill="#000000" opacity="0.7"/>
+  <text x="64" y="108" font-family="Arial" font-size="12" font-weight="bold" fill="#FFD700" text-anchor="middle">50.00 ₽</text>
+</svg>

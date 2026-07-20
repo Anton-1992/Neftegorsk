@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="miserBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2d251a"/>
+      <stop offset="100%" style="stop-color:#1a150d"/>
+    </linearGradient>
+    <linearGradient id="copperTrim" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#B87333"/>
+      <stop offset="50%" style="stop-color:#CD7F32"/>
+      <stop offset="100%" style="stop-color:#B87333"/>
+    </linearGradient>
+  </defs>
+  
+  <circle cx="128" cy="128" r="120" fill="url(#miserBg)" stroke="url(#copperTrim)" stroke-width="4"/>
+  
+  <!-- Miser character - hunched, counting coins -->
+  <g fill="#3d301a">
+    <!-- Body -->
+    <ellipse cx="128" cy="165" rx="45" ry="40"/>
+    <!-- Head -->
+    <circle cx="128" cy="110" r="35"/>
+    <!-- Shoulders hunched -->
+    <path d="M83 135 Q95 120 128 125 Q161 120 173 135"/>
+    <!-- Arms clutching -->
+    <path d="M100 140 Q110 150 115 160" stroke="#3d301a" stroke-width="18" fill="none" stroke-linecap="round"/>
+    <path d="M156 140 Q146 150 141 160" stroke="#3d301a" stroke-width="18" fill="none" stroke-linecap="round"/>
+    <!-- Hands on coins -->
+    <circle cx="115" cy="160" r="12" fill="#2d2010"/>
+    <circle cx="141" cy="160" r="12" fill="#2d2010"/>
+    <!-- Face - narrow eyes, thin lips -->
+    <ellipse cx="115" cy="105" rx="8" ry="4" fill="#1a150d"/>
+    <ellipse cx="141" cy="105" rx="8" ry="4" fill="#1a150d"/>
+    <path d="M110 120 Q128 125 146 120" stroke="#1a150d" stroke-width="3" fill="none"/>
+    <!-- Coin pile -->
+    <g fill="url(#copperTrim)">
+      <ellipse cx="128" cy="168" rx="25" ry="6"/>
+      <ellipse cx="128" cy="162" rx="22" ry="5"/>
+      <ellipse cx="128" cy="156" rx="18" ry="4"/>
+      <ellipse cx="128" cy="150" rx="14" ry="3"/>
+      <circle cx="128" cy="146" r="8"/>
+    </g>
+    <!-- Coin stack in hand -->
+    <g fill="#CD7F32" stroke="#B87333" stroke-width="1">
+      <rect x="108" y="145" width="14" height="30" rx="2"/>
+      <rect x="108" y="147" width="14" height="2" fill="#B87333"/>
+      <rect x="108" y="152" width="14" height="2" fill="#B87333"/>
+      <rect x="108" y="157" width="14" height="2" fill="#B87333"/>
+      <rect x="134" y="145" width="14" height="30" rx="2"/>
+      <rect x="134" y="147" width="14" height="2" fill="#B87333"/>
+      <rect x="134" y="152" width="14" height="2" fill="#B87333"/>
+      <rect x="134" y="157" width="14" height="2" fill="#B87333"/>
+    </g>
+  </g>
+  
+  <text x="128" y="220" font-family="Arial Black" font-size="20" font-weight="bold" fill="url(#copperTrim)" text-anchor="middle" stroke="#000" stroke-width="2">СКУПОЙ</text>
+</svg>
