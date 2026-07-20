@@ -3,6 +3,7 @@ name: Build Android APK
 on:
   push:
     branches: [ arena/019f8138-neftegorsk ]
+    tags: [ 'v*' ]  # Trigger on version tags like v1.0.0
   pull_request:
     branches: [ arena/019f8138-neftegorsk ]
   workflow_dispatch:  # Manual trigger
