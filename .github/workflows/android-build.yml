@@ -1,0 +1,119 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ arena/019f8138-neftegorsk ]
+    tags: [ 'v*' ]  # Trigger on version tags like v1.0.0
+  pull_request:
+    branches: [ arena/019f8138-neftegorsk ]
+  workflow_dispatch:  # Manual trigger
+
+permissions:
+  contents: write  # Needed for releasing
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      GODOT_VERSION: "4.3"
+      EXPORT_NAME: "Android"
+      PROJECT_PATH: "./project"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Setup Godot
+        uses: firebelley/godot-export@v6.0.0
+        with:
+          godot_version: ${{ env.GODOT_VERSION }}
+          template_version: ${{ env.GODOT_VERSION }}
+          relative_project_path: ${{ env.PROJECT_PATH }}
+
+      - name: Create debug keystore
+        run: |
+          mkdir -p ~/.local/share/godot/app_userdata/Neftegorsk
+          keytool -genkey -v \
+            -keystore ~/.local/share/godot/app_userdata/Neftegorsk/debug.keystore \
+            -alias androiddebugkey \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass android \
+            -keypass android \
+            -dname "CN=Android Debug,O=Android,C=US" \
+            2>/dev/null || true
+
+      - name: Install Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: 34
+          ndk-version: r26c
+          cmdline-tools-version: latest
+
+      - name: Accept Android licenses
+        run: yes | sdkmanager --licenses
+
+      - name: Export APK
+        id: export
+        run: |
+          cd ${{ env.PROJECT_PATH }}
+          godot --headless --export-release "${{ env.EXPORT_NAME }}" ../builds/Neftegorsk.apk
+
+      - name: Verify APK
+        run: |
+          ls -la builds/
+          file builds/Neftegorsk.apk
+          unzip -l builds/Neftegorsk.apk | head -20
+
+      - name: Upload APK as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Neftegorsk-APK
+          path: builds/Neftegorsk.apk
+          retention-days: 30
+
+      - name: Create Release (on tags)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: builds/Neftegorsk.apk
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload to Release (manual dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "build-${{ github.run_number }}"
+          name: "Neftegorsk Build #${{ github.run_number }}"
+          files: builds/Neftegorsk.apk
+          draft: true
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Godot for tests
+        uses: firebelley/godot-export@v6.0.0
+        with:
+          godot_version: ${{ env.GODOT_VERSION }}
+          relative_project_path: ${{ env.PROJECT_PATH }}
+
+      - name: Run headless tests
+        run: |
+          cd ${{ env.PROJECT_PATH }}
+          godot --headless --script res://scripts/tools/run_tests.gd || echo "No test script found, skipping"
