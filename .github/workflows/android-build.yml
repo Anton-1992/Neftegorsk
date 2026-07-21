@@ -3,13 +3,13 @@ name: Build Android APK
 on:
   push:
     branches: [ arena/019f8138-neftegorsk ]
-    tags: [ 'v*' ]  # Trigger on version tags like v1.0.0
+    tags: [ 'v*' ]
   pull_request:
     branches: [ arena/019f8138-neftegorsk ]
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch:
 
 permissions:
-  contents: write  # Needed for releasing
+  contents: write
 
 jobs:
   build:
@@ -31,8 +31,8 @@ jobs:
       - name: Setup Godot
         uses: firebelley/godot-export@v6.0.0
         with:
-          godot_version: ${{ env.GODOT_VERSION }}
-          template_version: ${{ env.GODOT_VERSION }}
+          godot_executable_download_url: https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip
+          godot_export_templates_download_url: https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz
           relative_project_path: ${{ env.PROJECT_PATH }}
 
       - name: Create debug keystore
@@ -110,7 +110,8 @@ jobs:
       - name: Setup Godot for tests
         uses: firebelley/godot-export@v6.0.0
         with:
-          godot_version: ${{ env.GODOT_VERSION }}
+          godot_executable_download_url: https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip
+          godot_export_templates_download_url: https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz
           relative_project_path: ${{ env.PROJECT_PATH }}
 
       - name: Run headless tests
