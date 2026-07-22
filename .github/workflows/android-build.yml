@@ -1,1 +1,82 @@
+name: Build Android APK (Container)
 
+on:
+  push:
+    branches: [ arena/019f868c-neftegorsk ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ arena/019f868c-neftegorsk ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  GODOT_VERSION: "4.3"
+  EXPORT_NAME: "Android"
+  PROJECT_PATH: "./project"
+
+jobs:
+  export-android:
+    name: Android Export & Sign
+    runs-on: ubuntu-latest
+    # Используем контейнер с Godot 4.3 (нужен образ с 4.3)
+    container:
+      image: barichello/godot-ci:4.3  # проверьте есть ли 4.3, иначе см. ниже
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Setup Godot Templates
+        run: |
+          mkdir -v -p ~/.local/share/godot/export_templates/
+          mkdir -v -p ~/.config/
+          mv /root/.config/godot ~/.config/godot 2>/dev/null || true
+          mv /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable 2>/dev/null || true
+
+      - name: Generate Keystore
+        run: |
+          cd ${{ env.PROJECT_PATH }}
+          keytool -genkey -v -keystore my_debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+
+      - name: Inject Keystore to Config
+        run: |
+          cd ${{ env.PROJECT_PATH }}
+          sed -i 's|keystore/debug=""|keystore/debug="res://my_debug.keystore"|g' export_presets.cfg
+          sed -i 's|keystore/debug_user=""|keystore/debug_user="androiddebugkey"|g' export_presets.cfg
+          sed -i 's|keystore/debug_password=""|keystore/debug_password="android"|g' export_presets.cfg
+          sed -i 's|keystore/release=""|keystore/release="res://my_debug.keystore"|g' export_presets.cfg
+          sed -i 's|keystore/release_user=""|keystore/release_user="androiddebugkey"|g' export_presets.cfg
+          sed -i 's|keystore/release_password=""|keystore/release_password="android"|g' export_presets.cfg
+
+      - name: Android Export
+        run: |
+          mkdir -v -p ../build/android
+          cd ${{ env.PROJECT_PATH }}
+          godot --headless --verbose --export-release "${{ env.EXPORT_NAME }}" "../build/android/${{ env.EXPORT_NAME }}_unsigned.apk"
+
+      - name: Install Signer and Apply V2/V3 Signatures
+        run: |
+          apt-get update && apt-get install -y apksigner
+          apksigner sign --ks ${{ env.PROJECT_PATH }}/my_debug.keystore --ks-pass pass:android --ks-key-alias androiddebugkey --key-pass pass:android --out ../build/android/${{ env.EXPORT_NAME }}.apk ../build/android/${{ env.EXPORT_NAME }}_unsigned.apk
+          apksigner verify --verbose ../build/android/${{ env.EXPORT_NAME }}.apk
+
+      - name: Upload Signed APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Neftegorsk-Signed-APK
+          path: build/android/${{ env.EXPORT_NAME }}.apk
+          retention-days: 30
+
+      - name: Create Release (on tags)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/android/${{ env.EXPORT_NAME }}.apk
+          generate_release_notes: true
+        env:
+
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
