@@ -45,6 +45,24 @@ jobs:
             -storepass android -keypass android \
             -dname "CN=Android Debug,O=Android,C=US" 2>/dev/null || true
 
+      # КЛЮЧЕВОЙ ШАГ: прописываем keystore в export_presets.cfg
+      - name: Inject Debug Keystore into Export Preset
+        run: |
+          cd ${{ env.PROJECT_PATH }}
+          # Копируем keystore в папку проекта (res://my_debug.keystore)
+          cp ~/.local/share/godot/app_userdata/Neftegorsk/debug.keystore my_debug.keystore
+          
+          # Прописываем в export_presets.cfg
+          sed -i 's|keystore/debug=""|keystore/debug="res://my_debug.keystore"|g' export_presets.cfg
+          sed -i 's|keystore/debug_user=""|keystore/debug_user="androiddebugkey"|g' export_presets.cfg
+          sed -i 's|keystore/debug_password=""|keystore/debug_password="android"|g' export_presets.cfg
+          sed -i 's|keystore/release=""|keystore/release="res://my_debug.keystore"|g' export_presets.cfg
+          sed -i 's|keystore/release_user=""|keystore/release_user="androiddebugkey"|g' export_presets.cfg
+          sed -i 's|keystore/release_password=""|keystore/release_password="android"|g' export_presets.cfg
+          
+          echo "=== Keystore config ==="
+          grep -A10 'keystore/' export_presets.cfg
+
       - uses: android-actions/setup-android@v3
         with: { api-level: 34, ndk-version: r26c, cmdline-tools-version: latest }
 
@@ -62,9 +80,6 @@ jobs:
           echo "=== Project ===" && ls -la ${{ env.PROJECT_PATH }}/
           echo "=== Presets ===" && cat ${{ env.PROJECT_PATH }}/export_presets.cfg
           echo "=== SDK ===" && echo $ANDROID_SDK_ROOT
-          echo "=== Keystore ===" && ls -la ~/.local/share/godot/app_userdata/Neftegorsk/
-
-      # Action сам сделает экспорт с --export-debug (export_debug: true)
 
       - name: Find APK
         run: |
