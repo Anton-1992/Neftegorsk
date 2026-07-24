@@ -93,6 +93,11 @@ jobs:
           # CRITICAL: embed PCK in APK (without this, game data is missing = freeze)
           sed -i 's|use_embedded_pck=false|use_embedded_pck=true|' export_presets.cfg
 
+          # CRITICAL: Godot 4 requires * prefix on autoload paths (enabled flag)
+          # Without *, autoloads are DISABLED and NOT loaded into scene tree
+          sed -i '/^\[autoload\]/,/^\[/ { s|="res://|="*res://|g }' project.godot
+          sed -i 's|="\*\*res://|="*res://|g' project.godot
+
           # Other export fixes
           sed -i 's|runnable=false|runnable=true|g' export_presets.cfg
           sed -i 's|export_path="builds/Neftegorsk.apk"|export_path="Neftegorsk.apk"|g' export_presets.cfg
@@ -105,6 +110,8 @@ jobs:
           grep "import_etc2_astc" project.godot
           grep "rendering_method/renderer" project.godot
           grep "use_embedded_pck" export_presets.cfg
+          echo "=== AUTOLOAD * PREFIX ==="
+          grep -E '^\w+="\*?res://' project.godot
 
       - name: Import project
         run: |
@@ -119,10 +126,17 @@ jobs:
             sed -i '/\[rendering\]/a textures/vram_compression/import_etc2_astc=true' project.godot
           fi
           sed -i 's|use_embedded_pck=false|use_embedded_pck=true|' export_presets.cfg
+          # CRITICAL: Godot 4 requires * prefix on autoload paths (enabled flag)
+          # Without *, autoloads are DISABLED and NOT loaded into scene tree
+          sed -i '/^\[autoload\]/,/^\[/ { s|="res://|="*res://|g }' project.godot
+          # Remove double * if already present (safety)
+          sed -i 's|="\*\*res://|="*res://|g' project.godot
           echo "=== VERIFIED AFTER IMPORT ==="
           grep "import_etc2_astc" project.godot
           grep "rendering_method/renderer" project.godot
           grep "use_embedded_pck" export_presets.cfg
+          echo "=== AUTOLOAD * PREFIX CHECK ==="
+          grep -E '^\w+="\*?res://' project.godot
 
       - name: Re-inject editor_settings after import
         run: |
