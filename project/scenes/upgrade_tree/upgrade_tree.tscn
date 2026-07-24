@@ -9,7 +9,7 @@ script = ExtResource("1")
 anchors_preset = 15
 color = Color(0.06, 0.08, 0.12, 1)
 
-[node name="ScrollContainer" type="ScrollContainer" parent="." layout_mode=3]
+[node name="ScrollContainer" type="ScrollContainer" parent="." layout_mode=3 unique_name_in_owner=true]
 anchors_preset = 15
 offset_left = 0.0
 offset_top = 80.0
@@ -19,15 +19,15 @@ horizontal_scroll_mode = 1
 vertical_scroll_mode = 1
 follow_focus = false
 
-[node name="TreeContainer" type="Control" parent="ScrollContainer"]
+[node name="TreeContainer" type="Control" parent="ScrollContainer" unique_name_in_owner=true]
 layout_mode = 1
 anchors_preset = 0
 custom_minimum_size = Vector2(2000, 1500)
 
-[node name="ConnectionLayer" type="Node2D" parent="TreeContainer"]
+[node name="ConnectionLayer" type="Node2D" parent="TreeContainer" unique_name_in_owner=true]
 z_index = 0
 
-[node name="UpgradeNodesLayer" type="Node2D" parent="TreeContainer"]
+[node name="UpgradeNodesLayer" type="Node2D" parent="TreeContainer" unique_name_in_owner=true]
 z_index = 1
 
 [node name="TopBar" type="HBoxContainer" parent="." layout_mode=3]
@@ -48,13 +48,13 @@ theme_override_colors/font_color = Color(1, 0.9, 0.3, 1)
 [node name="Spacer1" type="Control" parent="TopBar"]
 size_flags_horizontal = 3
 
-[node name="StarsDisplay" type="Label" parent="TopBar"]
+[node name="StarsDisplay" type="Label" parent="TopBar" unique_name_in_owner=true]
 text = "★ 0"
 horizontal_alignment = 2
 theme_override_font_sizes/font_size = 28
 theme_override_colors/font_color = Color(1, 0.9, 0.2, 1)
 
-[node name="BtnCloseTree" type="Button" parent="TopBar"]
+[node name="BtnCloseTree" type="Button" parent="TopBar" unique_name_in_owner=true]
 text = "ЗАКРЫТЬ"
 custom_minimum_size = Vector2(140, 50)
 theme_override_font_sizes/font_size = 18
@@ -68,12 +68,12 @@ offset_bottom = -20.0
 theme_override_constants/separation = 20
 alignment = 1
 
-[node name="CategoryTabs" type="TabBar" parent="BottomBar"]
+[node name="CategoryTabs" type="TabBar" parent="BottomBar" unique_name_in_owner=true]
 tab_count = 6
 theme_override_font_sizes/font_size = 16
 custom_minimum_size = Vector2(800, 50)
 
-[node name="UpgradeDetailPanel" type="Panel" parent="." layout_mode=3]
+[node name="UpgradeDetailPanel" type="Panel" parent="." layout_mode=3 unique_name_in_owner=true]
 anchors_preset = 10
 offset_left = 20.0
 offset_top = 120.0
@@ -89,17 +89,17 @@ offset_right = -20.0
 offset_bottom = -20.0
 theme_override_constants/separation = 15
 
-[node name="DetailIcon" type="TextureRect" parent="DetailContent"]
+[node name="DetailIcon" type="TextureRect" parent="DetailContent" unique_name_in_owner=true]
 custom_minimum_size = Vector2(80, 80)
 stretch_mode = 2
 
-[node name="DetailName" type="Label" parent="DetailContent"]
+[node name="DetailName" type="Label" parent="DetailContent" unique_name_in_owner=true]
 text = "Название улучшения"
 horizontal_alignment = 0
 theme_override_font_sizes/font_size = 24
 theme_override_colors/font_color = Color(1, 0.9, 0.3, 1)
 
-[node name="DetailDesc" type="Label" parent="DetailContent"]
+[node name="DetailDesc" type="Label" parent="DetailContent" unique_name_in_owner=true]
 text = "Описание улучшения"
 horizontal_alignment = 0
 vertical_alignment = 1
@@ -110,36 +110,36 @@ theme_override_colors/font_color = Color(0.8, 0.8, 0.9, 1)
 [node name="DetailCost" type="HBoxContainer" parent="DetailContent"]
 theme_override_constants/separation = 15
 
-[node name="DetailStarCost" type="Label" parent="DetailCost"]
+[node name="DetailStarCost" type="Label" parent="DetailCost" unique_name_in_owner=true]
 text = "★ 3"
 horizontal_alignment = 0
 theme_override_font_sizes/font_size = 20
 theme_override_colors/font_color = Color(1, 0.9, 0.2, 1)
 
-[node name="DetailCashCost" type="Label" parent="DetailCost"]
+[node name="DetailCashCost" type="Label" parent="DetailCost" unique_name_in_owner=true]
 text = "50 000 ₽"
 horizontal_alignment = 0
 theme_override_font_sizes/font_size = 20
 theme_override_colors/font_color = Color(0.4, 1, 0.4, 1)
 
-[node name="DetailEffects" type="Label" parent="DetailContent"]
+[node name="DetailEffects" type="Label" parent="DetailContent" unique_name_in_owner=true]
 text = "Эффекты: ..."
 horizontal_alignment = 0
 theme_override_font_sizes/font_size = 16
 theme_override_colors/font_color = Color(0.7, 1, 0.7, 1)
 
-[node name="BtnPurchase" type="Button" parent="DetailContent"]
+[node name="BtnPurchase" type="Button" parent="DetailContent" unique_name_in_owner=true]
 text = "ПРИОБРЕСТИ"
 custom_minimum_size = Vector2(0, 50)
 theme_override_font_sizes/font_size = 20
 disabled = true
 
-[node name="BtnCloseDetail" type="Button" parent="DetailContent"]
+[node name="BtnCloseDetail" type="Button" parent="DetailContent" unique_name_in_owner=true]
 text = "ЗАКРЫТЬ"
 custom_minimum_size = Vector2(0, 40)
 theme_override_font_sizes/font_size = 16
 
-[node name="PrerequisiteToast" type="Label" parent="." layout_mode=3]
+[node name="PrerequisiteToast" type="Label" parent="." layout_mode=3 unique_name_in_owner=true]
 anchors_preset = 14
 offset_left = 0.0
 offset_top = 500.0

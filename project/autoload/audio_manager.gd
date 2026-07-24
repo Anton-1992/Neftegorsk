@@ -26,8 +26,10 @@ var music_fade_time: float = 2.0
 var sfx_library: Dictionary = {}
 
 func _ready() -> void:
+	DebugLogger.log_node_ready("AudioManager", true, "start _ready")
 	_setup_players()
 	_load_audio_resources()
+	DebugLogger.log_node_ready("AudioManager", true, "done")
 
 func _setup_players() -> void:
 	# Music player

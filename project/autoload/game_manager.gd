@@ -54,15 +54,23 @@ var save_manager: SaveManager
 var audio_manager: AudioManager
 
 func _ready() -> void:
+	DebugLogger.log_node_ready("GameManager", true, "start _ready")
 	# Get references to other autoloads
 	level_manager = LevelManager
 	upgrade_manager = UpgradeManager
 	economy_manager = EconomyManager
 	save_manager = SaveManager
 	audio_manager = AudioManager
+	DebugLogger.log_node_ready("GameManager", true, "got autoload refs")
 	
 	# Load saved game
-	save_manager.load_game()
+	var load_ok = true
+	if save_manager:
+		save_manager.load_game()
+		DebugLogger.log_node_ready("GameManager", true, "save_manager loaded")
+	else:
+		DebugLogger.log_error("GameManager: save_manager is null!")
+		load_ok = false
 	
 	# Initialize currency
 	cash = initial_cash

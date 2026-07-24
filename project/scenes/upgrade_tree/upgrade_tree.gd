@@ -48,7 +48,8 @@ func _setup_ui() -> void:
 	btn_close_detail.pressed.connect(_hide_detail)
 	
 	# Setup category tabs
-	for i, cat in enumerate(CATEGORIES):
+	for i in range(CATEGORIES.size()):
+		var cat = CATEGORIES[i]
 		category_tabs.set_tab_title(i, "%s %s" % [cat.icon, cat.name])
 	category_tabs.tab_changed.connect(_on_category_changed)
 
@@ -76,7 +77,8 @@ func _build_tree() -> void:
 	var start_x = 100
 	var start_y = 100
 	
-	for cat_idx, cat_info in enumerate(CATEGORIES):
+	for cat_idx in range(CATEGORIES.size()):
+		var cat_info = CATEGORIES[cat_idx]
 		var cat_id = cat_info.id
 		if not layout.has(cat_id):
 			continue
@@ -121,7 +123,8 @@ func _build_tree() -> void:
 			var total_width = (count - 1) * 160 + 120
 			var start_x_tier = cat_x + col_width * 0.5 - total_width * 0.5
 			
-			for i, upgrade in enumerate(upgrades_in_tier):
+			for i in range(upgrades_in_tier.size()):
+				var upgrade = upgrades_in_tier[i]
 				var x = start_x_tier + i * 160
 				var y = tier_y
 				
@@ -159,7 +162,6 @@ func _create_upgrade_node(upgrade: UpgradeData, position: Vector2, category_colo
 	btn.focus_mode = Control.FOCUS_NONE
 	
 	# Custom drawing for hexagon
-	btn.draw_callback = _draw_upgrade_node.bind(btn, upgrade, category_color)
 	btn.pressed.connect(_on_node_pressed.bind(upgrade.upgrade_id))
 	btn.mouse_entered.connect(_on_node_hover.bind(upgrade.upgrade_id, true))
 	btn.mouse_exited.connect(_on_node_hover.bind(upgrade.upgrade_id, false))
@@ -388,7 +390,11 @@ func _show_prerequisite_toast(upgrade: UpgradeData) -> void:
 			if p_upg:
 				missing.append(p_upg.display_name)
 	
-	var msg = "Требуется: %s" % ", ".join(missing)
+	var msg = "Требуется: "
+	for j in range(missing.size()):
+		if j > 0:
+			msg += ", "
+		msg += missing[j]
 	prereq_toast.text = msg
 	prereq_toast.visible = true
 	prereq_toast.modulate = Color(1, 1, 1, 1)
@@ -481,11 +487,3 @@ func _get_effect_description(key: String, value: Variant) -> String:
 	}
 	return descriptions.get(key, "%s: %s" % [key, value])
 
-func _format_number(num: int) -> String:
-	var str = str(num)
-	var result = ""
-	for i, ch in enumerate(str.reversed()):
-		if i > 0 and i % 3 == 0:
-			result = " " + result
-		result = ch + result
-	return result

@@ -34,7 +34,7 @@ extends Resource
 
 @export_group("Rewards")
 @export var base_stars: int = 3             # Stars for completion
-@export var bonus_star_conditions: Array[Dictionary] = []  # Extra stars: {"type": "time", "threshold": 300}, {"type": "cash", "threshold": 100000}
+@export var bonus_star_conditions: Array = []  # Extra stars: {"type": "time", "threshold": 300}, {"type": "cash", "threshold": 100000}
 @export var unlock_next_level: bool = true
 
 @export_group("Narrative")

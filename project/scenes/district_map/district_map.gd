@@ -56,7 +56,7 @@ func _load_district(district_id: StringName) -> void:
 	for btn in level_buttons:
 		btn.queue_free()
 	level_buttons.clear()
-	level_grid.clear_children()
+	for child in level_grid.get_children(): child.queue_free()
 	
 	# Create level buttons
 	var levels = LevelManager.get_levels_for_district(district_id)
@@ -215,11 +215,3 @@ func _update_currency() -> void:
 	district_cash.text = "%s ₽" % _format_number(GameManager.cash)
 	district_stars.text = "★ %d" % GameManager.total_stars
 
-func _format_number(num: int) -> String:
-	var str = str(num)
-	var result = ""
-	for i, ch in enumerate(str.reversed()):
-		if i > 0 and i % 3 == 0:
-			result = " " + result
-		result = ch + result
-	return result

@@ -20,7 +20,9 @@ var category_order: Array[int] = [
 ]
 
 func _ready() -> void:
+	DebugLogger.log_node_ready("UpgradeManager", true, "start _ready")
 	_initialize_upgrades()
+	DebugLogger.log_node_ready("UpgradeManager", true, "done")
 
 func _initialize_upgrades() -> void:
 	upgrades = UpgradeData.create_upgrade_tree()

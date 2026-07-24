@@ -15,9 +15,11 @@ const SETTINGS_PATH = "user://settings.cfg"
 var save_version: int = 1
 
 func _ready() -> void:
+	DebugLogger.log_node_ready("SaveManager", true, "start _ready")
 	# Ensure user:// directory exists
 	if not DirAccess.dir_exists_absolute(OS.get_user_data_dir()):
 		DirAccess.make_dir_recursive_absolute(OS.get_user_data_dir())
+	DebugLogger.log_node_ready("SaveManager", true, "done")
 
 func save_game() -> bool:
 	var game_mgr = GameManager
@@ -38,8 +40,8 @@ func save_game() -> bool:
 		config.set_value("game", key, _variant_to_saveable(value))
 	
 	# Settings (audio, graphics, etc.)
-	config.set_value("settings", "music_volume", AudioManager.music_volume if hasattr(AudioManager, "music_volume") else 0.7)
-	config.set_value("settings", "sfx_volume", AudioManager.sfx_volume if hasattr(AudioManager, "sfx_volume") else 0.8)
+	config.set_value("settings", "music_volume", AudioManager.music_volume)
+	config.set_value("settings", "sfx_volume", AudioManager.sfx_volume)
 	config.set_value("settings", "language", "ru")
 	config.set_value("settings", "notifications", true)
 	
@@ -96,9 +98,9 @@ func load_game() -> bool:
 		game_mgr.load_save_data(save_data)
 	
 	# Load settings
-	if config.has_section_key("settings", "music_volume") and hasattr(AudioManager, "music_volume"):
+	if config.has_section_key("settings", "music_volume"):
 		AudioManager.music_volume = config.get_value("settings", "music_volume")
-	if config.has_section_key("settings", "sfx_volume") and hasattr(AudioManager, "sfx_volume"):
+	if config.has_section_key("settings", "sfx_volume"):
 		AudioManager.sfx_volume = config.get_value("settings", "sfx_volume")
 	if config.has_section_key("settings", "language"):
 		# Apply language
@@ -145,8 +147,10 @@ func _variant_to_saveable(value: Variant) -> Variant:
 	match value.get_type():
 		TYPE_NIL, TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING:
 			return value
-		TYPE_VECTOR2, TYPE_VECTOR2I, TYPE_VECTOR3, TYPE_VECTOR3I:
-			return {"__type": "Vector", "x": value.x, "y": value.y, "z": value.z if hasattr(value, "z") else 0}
+		TYPE_VECTOR2, TYPE_VECTOR2I:
+			return {"__type": "Vector", "x": value.x, "y": value.y, "z": 0}
+		TYPE_VECTOR3, TYPE_VECTOR3I:
+			return {"__type": "Vector", "x": value.x, "y": value.y, "z": value.z}
 		TYPE_COLOR:
 			return {"__type": "Color", "r": value.r, "g": value.g, "b": value.b, "a": value.a}
 		TYPE_RECT2, TYPE_RECT2I:

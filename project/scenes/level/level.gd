@@ -60,7 +60,7 @@ var time_speed: float = 2.0
 var is_paused: bool = false
 
 # Station data
-var player_stations_data: Array[Dictionary] = []
+var player_stations_data: Array = []
 var opponent_data: Dictionary = {}
 var selected_station_id: int = 0
 var selected_opponent_id: int = -1
@@ -87,9 +87,11 @@ const TILE = TileMapSetup.TILE_IDS
 const TILE_SIZE = 64
 
 func _ready() -> void:
+	DebugLogger.log_node_ready("Level", true, "start _ready")
 	_setup_ui()
 	_connect_signals()
 	_initialize_level()
+	DebugLogger.log_node_ready("Level", true, "done")
 
 func _setup_ui() -> void:
 	btn_speed1.pressed.connect(_set_speed.bind(1.0))
@@ -179,7 +181,7 @@ func _render_map_with_tiles() -> void:
 	for tm in [ground_tilemap, road_tilemap, water_tilemap, park_tilemap]:
 		tm.clear_layer(0)
 	
-	building_layer.queue_free_children()
+	for child in building_layer.get_children(): child.queue_free()
 	
 	# Get district tile palette
 	var palette = TileMapSetup.get_district_tiles(district_data.district_id)
@@ -283,7 +285,7 @@ func _create_building_sprite(building: Dictionary) -> void:
 	rect.modulate = rect.color * Color(0.9 + randf() * 0.2, 0.9 + randf() * 0.2, 0.9 + randf() * 0.2, 1)
 
 func _create_stations() -> void:
-	opponent_stations.queue_free_children()
+	for child in station_layer.get_children(): child.queue_free()
 	player_stations_data.clear()
 	opponent_data.clear()
 	
@@ -306,7 +308,8 @@ func _create_stations() -> void:
 	_update_station_ui(0)
 	
 	# Opponent stations
-	for i, opp_station in enumerate(map_data.opponent_stations):
+	for i in range(map_data.opponent_stations.size()):
+		var opp_station = map_data.opponent_stations[i]
 		var comp_id = opp_station.owner_index + 1
 		var pos = opp_station.pos
 		var archetype_id = opp_station.archetype
@@ -435,7 +438,8 @@ func _show_result(victory: bool, stars: int, stats: Dictionary) -> void:
 		AudioManager.sfx_error()
 	
 	var star_labels = [result_stars.get_child(i) for i in range(result_stars.get_child_count()) if result_stars.get_child(i) is Label]
-	for i, star in enumerate(star_labels):
+	for i in range(star_labels.size()):
+		var star = star_labels[i]
 		star.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
 		if i < stars:
 			var tween = create_tween()
@@ -616,7 +620,7 @@ func _calculate_buyout_price(comp_id: int) -> int:
 	var data = opponent_data[comp_id]
 	var base = 50000 * data.stations.size()
 	var archetype = _get_archetype_data(data.archetype)
-	var loyalty = archetype.loyalty if hasattr(archetype, "loyalty") else 1.0
+	var loyalty = archetype.loyalty if archetype != null else 1.0
 	var rep = 2.0 - GameManager.player_reputation * 0.5
 	return int(base * loyalty * rep)
 
@@ -690,10 +694,3 @@ func _get_archetype_display_name(archetype_id: StringName) -> String:
 func _get_archetype_data(archetype_id: StringName) -> Resource:
 	return null
 
-func _format_number(num: int) -> String:
-	var str = str(num)
-	var result = ""
-	for i, ch in enumerate(str.reversed()):
-		if i > 0 and i % 3 == 0: result = " " + result
-		result = ch + result
-	return result

@@ -32,13 +32,21 @@ var district_buttons: Dictionary = {}  # district_id -> Button
 var level_select_callback: Callable = null
 
 func _ready() -> void:
+	DebugLogger.log_node_ready("MainMenu", true, "start _ready")
+	
+	# Add visible debug label
+	_add_debug_overlay()
+	
 	_setup_ui()
+	DebugLogger.log_node_ready("MainMenu", true, "_setup_ui done")
 	_create_district_map()
 	_connect_signals()
 	_update_currency_display()
+	DebugLogger.log_node_ready("MainMenu", true, "core setup done")
 	
-	# Play menu music
+	# Play menu music (ignore errors - audio files may not exist)
 	AudioManager.play_music("main_menu")
+	DebugLogger.log_node_ready("MainMenu", true, "music requested")
 	
 	# Check for save game
 	if SaveManager.has_save_file():
@@ -47,23 +55,68 @@ func _ready() -> void:
 	else:
 		btn_continue.text = "НОВАЯ ИГРА"
 		btn_continue.disabled = false
+	
+	# Hide debug label after successful init (keep for 3 seconds for testing)
+	DebugLogger.log_node_ready("MainMenu", true, "ALL DONE - game loaded successfully!")
+	_hide_debug_after_delay()
+
+func _add_debug_overlay() -> void:
+	# Create a visible debug label at top of screen
+	var debug_label = Label.new()
+	debug_label.name = "DebugOverlay"
+	debug_label.text = "NEFTEGORSK LOADING..."
+	debug_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	debug_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	debug_label.anchors_preset = Control.PRESET_CENTER_TOP
+	debug_label.position = Vector2(0, 50)
+	debug_label.size = Vector2(1080, 40)
+	debug_label.theme_override_font_sizes/font_size = 24
+	debug_label.theme_override_colors/font_color = Color(1, 0.3, 0.3)
+	debug_label.theme_override_colors/font_outline_color = Color(0, 0, 0)
+	debug_label.theme_override_constants/outline_size = 2
+	add_child(debug_label)
+
+func _hide_debug_after_delay() -> void:
+	var debug = get_node_or_null("DebugOverlay")
+	if debug:
+		debug.text = "OK ✓"
+		debug.theme_override_colors/font_color = Color(0.4, 1, 0.4)
+		# Keep visible for 3 seconds then hide
+		var tween = create_tween()
+		tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+		tween.tween_interval(3.0)
+		tween.tween_callback(debug.queue_free.bind)
 
 func _setup_ui() -> void:
+	# Null-check all @onready references and log which ones are null
+	var null_nodes = []
+	for var_name in ["map_container", "district_layer", "district_info", "district_name", "district_desc", "stat_levels", "stat_stars", "stat_difficulty", "btn_enter", "cash_label", "stars_label", "btn_continue", "btn_upgrades", "btn_settings", "level_select_dialog", "level_list", "btn_level_confirm", "settings_dialog", "music_volume", "sfx_volume", "btn_reset", "reset_dialog", "new_game_dialog"]:
+		if get(var_name) == null:
+			null_nodes.append(var_name)
+	
+	if null_nodes.size() > 0:
+		DebugLogger.log_error("MainMenu: null @onready nodes: %s" % str(null_nodes))
+		var debug = get_node_or_null("DebugOverlay")
+		if debug:
+			debug.text = "NULL NODES: %s" % str(null_nodes)
+	else:
+		DebugLogger.log_node_ready("MainMenu", true, "all @onready nodes found")
+	
 	district_info.visible = false
-	btn_enter.pressed.connect(_on_enter_district)
-	btn_continue.pressed.connect(_on_continue_pressed)
-	btn_upgrades.pressed.connect(_on_upgrades_pressed)
-	btn_settings.pressed.connect(_on_settings_pressed)
-	btn_level_confirm.pressed.connect(_on_level_confirm)
-	btn_reset.pressed.connect(_on_reset_pressed)
-	reset_dialog.confirmed.connect(_on_reset_confirmed)
-	new_game_dialog.confirmed.connect(_on_new_game_confirmed)
-	music_volume.value_changed.connect(_on_music_volume_changed)
-	sfx_volume.value_changed.connect(_on_sfx_volume_changed)
+	if btn_enter: btn_enter.pressed.connect(_on_enter_district)
+	if btn_continue: btn_continue.pressed.connect(_on_continue_pressed)
+	if btn_upgrades: btn_upgrades.pressed.connect(_on_upgrades_pressed)
+	if btn_settings: btn_settings.pressed.connect(_on_settings_pressed)
+	if btn_level_confirm: btn_level_confirm.pressed.connect(_on_level_confirm)
+	if btn_reset: btn_reset.pressed.connect(_on_reset_pressed)
+	if reset_dialog: reset_dialog.confirmed.connect(_on_reset_confirmed)
+	if new_game_dialog: new_game_dialog.confirmed.connect(_on_new_game_confirmed)
+	if music_volume: music_volume.value_changed.connect(_on_music_volume_changed)
+	if sfx_volume: sfx_volume.value_changed.connect(_on_sfx_volume_changed)
 	
 	# Load saved volume settings
-	music_volume.value = AudioManager.music_volume
-	sfx_volume.value = AudioManager.sfx_volume
+	if music_volume: music_volume.value = AudioManager.music_volume
+	if sfx_volume: sfx_volume.value = AudioManager.sfx_volume
 
 func _connect_signals() -> void:
 	GameManager.currency_changed.connect(_update_currency_display)
@@ -117,7 +170,8 @@ func _create_district_button(district: DistrictData, position: Vector2) -> Butto
 	var is_unlocked = GameManager.is_district_unlocked(district.district_id)
 	var progress = GameManager.get_level_progress(district.district_id)
 	
-	btn.draw_rect_callback = _draw_district_button.bind(btn, district, is_unlocked, progress)
+	# draw_rect_callback removed (not a valid Button property in Godot 4)
+	# Custom drawing handled via _draw_district_button and queue_redraw
 	btn.pressed.connect(_on_district_pressed.bind(district.district_id))
 	btn.mouse_entered.connect(_on_district_hover.bind(district.district_id, true))
 	btn.mouse_exited.connect(_on_district_hover.bind(district.district_id, false))
@@ -312,12 +366,14 @@ func _update_currency_display() -> void:
 	stars_label.text = "★ %d" % GameManager.total_stars
 
 func _format_number(num: int) -> String:
-	var str = str(num)
+	var num_str = str(num)
 	var result = ""
-	for i, ch in enumerate(str.reversed()):
-		if i > 0 and i % 3 == 0:
+	var count = 0
+	for i in range(num_str.length() - 1, -1, -1):
+		if count > 0 and count % 3 == 0:
 			result = " " + result
-		result = ch + result
+		result = num_str[i] + result
+		count += 1
 	return result
 
 func _on_district_unlocked(district_id: StringName) -> void:

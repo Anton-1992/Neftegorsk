@@ -18,9 +18,11 @@ var locked_districts: Array[StringName] = []
 var generated_maps: Dictionary = {}  # level_id -> generated map data
 
 func _ready() -> void:
+	DebugLogger.log_node_ready("LevelManager", true, "start _ready")
 	_initialize_districts()
 	_initialize_levels()
 	_apply_unlocks_from_save()
+	DebugLogger.log_node_ready("LevelManager", true, "done")
 
 func _initialize_districts() -> void:
 	# Define all districts with progression order

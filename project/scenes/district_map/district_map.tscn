@@ -20,7 +20,7 @@ texture = ExtResource("2")
 stretch_mode = 2
 modulate = Color(1, 1, 1, 0.3)
 
-[node name="LevelGrid" type="GridContainer" parent="." layout_mode=3]
+[node name="LevelGrid" type="GridContainer" parent="." layout_mode=3 unique_name_in_owner=true]
 anchors_preset = 15
 offset_left = 50.0
 offset_top = 120.0
@@ -38,12 +38,12 @@ offset_right = -20.0
 offset_bottom = -1780.0
 theme_override_constants/separation = 20
 
-[node name="BtnBack" type="Button" parent="TopBar"]
+[node name="BtnBack" type="Button" parent="TopBar" unique_name_in_owner=true]
 text = "← КАРТА ГОРОДА"
 custom_minimum_size = Vector2(200, 50)
 theme_override_font_sizes/font_size = 18
 
-[node name="DistrictTitle" type="Label" parent="TopBar"]
+[node name="DistrictTitle" type="Label" parent="TopBar" unique_name_in_owner=true]
 text = "РАЙОН"
 horizontal_alignment = 0
 vertical_alignment = 1
@@ -53,13 +53,13 @@ theme_override_colors/font_color = Color(1, 0.9, 0.3, 1)
 [node name="Spacer1" type="Control" parent="TopBar"]
 size_flags_horizontal = 3
 
-[node name="DistrictCash" type="Label" parent="TopBar"]
+[node name="DistrictCash" type="Label" parent="TopBar" unique_name_in_owner=true]
 text = "50 000 ₽"
 horizontal_alignment = 2
 theme_override_font_sizes/font_size = 24
 theme_override_colors/font_color = Color(0.4, 1, 0.4, 1)
 
-[node name="DistrictStars" type="Label" parent="TopBar"]
+[node name="DistrictStars" type="Label" parent="TopBar" unique_name_in_owner=true]
 text = "★ 12"
 horizontal_alignment = 2
 theme_override_font_sizes/font_size = 24
@@ -74,12 +74,12 @@ offset_bottom = -20.0
 theme_override_constants/separation = 30
 alignment = 2
 
-[node name="BtnUpgrades2" type="Button" parent="BottomBar"]
+[node name="BtnUpgrades2" type="Button" parent="BottomBar" unique_name_in_owner=true]
 text = "УЛУЧШЕНИЯ"
 custom_minimum_size = Vector2(180, 60)
 theme_override_font_sizes/font_size = 20
 
-[node name="BtnSettings2" type="Button" parent="BottomBar"]
+[node name="BtnSettings2" type="Button" parent="BottomBar" unique_name_in_owner=true]
 text = "НАСТРОЙКИ"
 custom_minimum_size = Vector2(180, 60)
 theme_override_font_sizes/font_size = 20
@@ -100,14 +100,14 @@ offset_bottom = -10.0
 theme_override_constants/separation = 30
 alignment = 1
 
-[node name="InfoDesc" type="Label" parent="DistrictInfoContent"]
+[node name="InfoDesc" type="Label" parent="DistrictInfoContent" unique_name_in_owner=true]
 text = "Выберите уровень для игры. За каждый пройденный уровень вы получаете звёзды."
 horizontal_alignment = 1
 autowrap_mode = 2
 theme_override_font_sizes/font_size = 18
 theme_override_colors/font_color = Color(0.7, 0.8, 0.9, 1)
 
-[node name="LevelDetailDialog" type="AcceptDialog" parent="."]
+[node name="LevelDetailDialog" type="AcceptDialog" parent="." unique_name_in_owner=true]
 title = "Детали уровня"
 min_size = Vector2(500, 500)
 
@@ -119,13 +119,13 @@ offset_right = -20.0
 offset_bottom = -20.0
 theme_override_constants/separation = 15
 
-[node name="DetailTitle" type="Label" parent="LevelDetailContainer"]
+[node name="DetailTitle" type="Label" parent="LevelDetailContainer" unique_name_in_owner=true]
 text = "Уровень 1"
 horizontal_alignment = 0
 theme_override_font_sizes/font_size = 28
 theme_override_colors/font_color = Color(1, 0.9, 0.3, 1)
 
-[node name="DetailDesc" type="Label" parent="LevelDetailContainer"]
+[node name="DetailDesc" type="Label" parent="LevelDetailContainer" unique_name_in_owner=true]
 text = "Описание уровня"
 horizontal_alignment = 0
 vertical_alignment = 1
@@ -142,7 +142,7 @@ theme_override_constants/v_separation = 10
 text = "Противников:"
 theme_override_font_sizes/font_size = 18
 
-[node name="DetailOpponentsVal" type="Label" parent="DetailStats"]
+[node name="DetailOpponentsVal" type="Label" parent="DetailStats" unique_name_in_owner=true]
 text = "1"
 horizontal_alignment = 2
 theme_override_font_sizes/font_size = 18
@@ -152,7 +152,7 @@ theme_override_colors/font_color = Color(1, 0.6, 0.4, 1)
 text = "Заправок у противников:"
 theme_override_font_sizes/font_size = 18
 
-[node name="DetailStationsVal" type="Label" parent="DetailStats"]
+[node name="DetailStationsVal" type="Label" parent="DetailStats" unique_name_in_owner=true]
 text = "1"
 horizontal_alignment = 2
 theme_override_font_sizes/font_size = 18
@@ -162,7 +162,7 @@ theme_override_colors/font_color = Color(1, 0.6, 0.4, 1)
 text = "Стартовый капитал:"
 theme_override_font_sizes/font_size = 18
 
-[node name="DetailCashVal" type="Label" parent="DetailStats"]
+[node name="DetailCashVal" type="Label" parent="DetailStats" unique_name_in_owner=true]
 text = "50 000 ₽"
 horizontal_alignment = 2
 theme_override_font_sizes/font_size = 18
@@ -172,13 +172,13 @@ theme_override_colors/font_color = Color(0.4, 1, 0.4, 1)
 text = "Макс. звёзд:"
 theme_override_font_sizes/font_size = 18
 
-[node name="DetailStarsVal" type="Label" parent="DetailStats"]
+[node name="DetailStarsVal" type="Label" parent="DetailStats" unique_name_in_owner=true]
 text = "3 ★"
 horizontal_alignment = 2
 theme_override_font_sizes/font_size = 18
 theme_override_colors/font_color = Color(1, 0.9, 0.2, 1)
 
-[node name="BtnStartLevel" type="Button" parent="LevelDetailContainer"]
+[node name="BtnStartLevel" type="Button" parent="LevelDetailContainer" unique_name_in_owner=true]
 text = "НАЧАТЬ УРОВЕНЬ"
 custom_minimum_size = Vector2(0, 55)
 theme_override_font_sizes/font_size = 22

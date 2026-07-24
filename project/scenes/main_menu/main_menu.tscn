@@ -11,7 +11,7 @@ script = ExtResource("2")
 anchors_preset = 15
 color = Color(0.08, 0.1, 0.15, 1)
 
-[node name="MapContainer" type="Control" parent="." layout_mode=3]
+[node name="MapContainer" type="Control" parent="." layout_mode=3 unique_name_in_owner=true]
 anchors_preset = 15
 offset_left = 20.0
 offset_top = 80.0
@@ -23,7 +23,7 @@ anchors_preset = 15
 texture = ExtResource("3")
 stretch_mode = 2
 
-[node name="DistrictLayer" type="Node2D" parent="MapContainer"]
+[node name="DistrictLayer" type="Node2D" parent="MapContainer" unique_name_in_owner=true]
 
 [node name="UILayer" type="Control" parent="." layout_mode=3]
 anchors_preset = 15
@@ -56,7 +56,7 @@ theme_override_constants/separation = 10
 custom_minimum_size = Vector2(32, 32)
 stretch_mode = 2
 
-[node name="CashLabel" type="Label" parent="CurrencyDisplay"]
+[node name="CashLabel" type="Label" parent="CurrencyDisplay" unique_name_in_owner=true]
 text = "50 000 ₽"
 horizontal_alignment = 0
 theme_override_font_sizes/font_size = 24
@@ -66,7 +66,7 @@ theme_override_colors/font_color = Color(0.4, 1, 0.4, 1)
 custom_minimum_size = Vector2(32, 32)
 stretch_mode = 2
 
-[node name="StarsLabel" type="Label" parent="CurrencyDisplay"]
+[node name="StarsLabel" type="Label" parent="CurrencyDisplay" unique_name_in_owner=true]
 text = "★ 0"
 horizontal_alignment = 0
 theme_override_font_sizes/font_size = 24
@@ -81,23 +81,23 @@ offset_bottom = -20.0
 theme_override_constants/separation = 30
 alignment = 2
 
-[node name="BtnUpgradeTree" type="Button" parent="BottomBar"]
+[node name="BtnUpgradeTree" type="Button" parent="BottomBar" unique_name_in_owner=true]
 text = "УЛУЧШЕНИЯ"
 custom_minimum_size = Vector2(180, 60)
 theme_override_font_sizes/font_size = 20
 
-[node name="BtnSettings" type="Button" parent="BottomBar"]
+[node name="BtnSettings" type="Button" parent="BottomBar" unique_name_in_owner=true]
 text = "НАСТРОЙКИ"
 custom_minimum_size = Vector2(180, 60)
 theme_override_font_sizes/font_size = 20
 
-[node name="BtnContinue" type="Button" parent="BottomBar"]
+[node name="BtnContinue" type="Button" parent="BottomBar" unique_name_in_owner=true]
 text = "ПРОДОЛЖИТЬ"
 custom_minimum_size = Vector2(220, 70)
 theme_override_font_sizes/font_size = 22
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 
-[node name="DistrictInfoPanel" type="Panel" parent="UILayer" layout_mode=3]
+[node name="DistrictInfoPanel" type="Panel" parent="UILayer" layout_mode=3 unique_name_in_owner=true]
 anchors_preset = 0
 offset_left = 20.0
 offset_top = 120.0
@@ -113,13 +113,13 @@ offset_right = -20.0
 offset_bottom = -20.0
 theme_override_constants/separation = 15
 
-[node name="DistrictName" type="Label" parent="DistrictInfoContent"]
+[node name="DistrictName" type="Label" parent="DistrictInfoContent" unique_name_in_owner=true]
 text = "Деловой центр"
 horizontal_alignment = 0
 theme_override_font_sizes/font_size = 28
 theme_override_colors/font_color = Color(1, 0.9, 0.3, 1)
 
-[node name="DistrictDesc" type="Label" parent="DistrictInfoContent"]
+[node name="DistrictDesc" type="Label" parent="DistrictInfoContent" unique_name_in_owner=true]
 text = "Небоскрёбы, бизнес-центры, плотный трафик. Высокая конкуренция, дорогие аренды."
 horizontal_alignment = 0
 vertical_alignment = 1
@@ -138,7 +138,7 @@ theme_override_constants/v_separation = 10
 text = "Уровней:"
 theme_override_font_sizes/font_size = 18
 
-[node name="StatLevelsVal" type="Label" parent="DistrictStats"]
+[node name="StatLevelsVal" type="Label" parent="DistrictStats" unique_name_in_owner=true]
 text = "4"
 horizontal_alignment = 2
 theme_override_font_sizes/font_size = 18
@@ -148,7 +148,7 @@ theme_override_colors/font_color = Color(0.4, 1, 0.4, 1)
 text = "Звёзд к следующему:"
 theme_override_font_sizes/font_size = 18
 
-[node name="StatStarsVal" type="Label" parent="DistrictStats"]
+[node name="StatStarsVal" type="Label" parent="DistrictStats" unique_name_in_owner=true]
 text = "6 ★"
 horizontal_alignment = 2
 theme_override_font_sizes/font_size = 18
@@ -158,18 +158,18 @@ theme_override_colors/font_color = Color(1, 0.9, 0.2, 1)
 text = "Сложность:"
 theme_override_font_sizes/font_size = 18
 
-[node name="StatDifficultyVal" type="Label" parent="DistrictStats"]
+[node name="StatDifficultyVal" type="Label" parent="DistrictStats" unique_name_in_owner=true]
 text = "★★☆☆☆"
 horizontal_alignment = 2
 theme_override_font_sizes/font_size = 18
 theme_override_colors/font_color = Color(1, 0.6, 0.2, 1)
 
-[node name="BtnEnterDistrict" type="Button" parent="DistrictInfoContent"]
+[node name="BtnEnterDistrict" type="Button" parent="DistrictInfoContent" unique_name_in_owner=true]
 text = "ВОЙТИ В РАЙОН"
 custom_minimum_size = Vector2(0, 50)
 theme_override_font_sizes/font_size = 20
 
-[node name="LevelSelectDialog" type="AcceptDialog" parent="."]
+[node name="LevelSelectDialog" type="AcceptDialog" parent="." unique_name_in_owner=true]
 title = "Выбор уровня"
 min_size = Vector2(500, 600)
 
@@ -181,18 +181,18 @@ offset_right = -20.0
 offset_bottom = -20.0
 theme_override_constants/separation = 10
 
-[node name="LevelList" type="ItemList" parent="LevelSelectContainer"]
+[node name="LevelList" type="ItemList" parent="LevelSelectContainer" unique_name_in_owner=true]
 custom_minimum_size = Vector2(0, 400)
 select_mode = 1
 theme_override_font_sizes/font_size = 20
 theme_override_constants/icon_margin = 10
 
-[node name="BtnLevelSelectConfirm" type="Button" parent="LevelSelectContainer"]
+[node name="BtnLevelSelectConfirm" type="Button" parent="LevelSelectContainer" unique_name_in_owner=true]
 text = "НАЧАТЬ УРОВЕНЬ"
 custom_minimum_size = Vector2(0, 50)
 theme_override_font_sizes/font_size = 20
 
-[node name="SettingsDialog" type="AcceptDialog" parent="."]
+[node name="SettingsDialog" type="AcceptDialog" parent="." unique_name_in_owner=true]
 title = "Настройки"
 min_size = Vector2(500, 600)
 
@@ -218,14 +218,14 @@ text = "ЗВУК"
 theme_override_font_sizes/font_size = 22
 theme_override_colors/font_color = Color(0.7, 0.8, 1, 1)
 
-[node name="MusicVolume" type="HSlider" parent="AudioSection"]
+[node name="MusicVolume" type="HSlider" parent="AudioSection" unique_name_in_owner=true]
 min_value = 0.0
 max_value = 1.0
 step = 0.01
 value = 0.7
 custom_minimum_size = Vector2(300, 40)
 
-[node name="SfxVolume" type="HSlider" parent="AudioSection"]
+[node name="SfxVolume" type="HSlider" parent="AudioSection" unique_name_in_owner=true]
 min_value = 0.0
 max_value = 1.0
 step = 0.01
@@ -250,7 +250,7 @@ text = "Ускоренное время (x2)"
 [node name="DataSection" type="VBoxContainer" parent="SettingsContainer"]
 theme_override_constants/separation = 10
 
-[node name="BtnResetProgress" type="Button" parent="DataSection"]
+[node name="BtnResetProgress" type="Button" parent="DataSection" unique_name_in_owner=true]
 text = "СБРОСИТЬ ПРОГРЕСС"
 custom_minimum_size = Vector2(300, 50)
 theme_override_font_sizes/font_size = 18
@@ -261,10 +261,10 @@ text = "ЗАКРЫТЬ"
 custom_minimum_size = Vector2(0, 50)
 theme_override_font_sizes/font_size = 20
 
-[node name="ResetConfirmDialog" type="ConfirmationDialog" parent="."]
+[node name="ResetConfirmDialog" type="ConfirmationDialog" parent="." unique_name_in_owner=true]
 title = "Подтверждение"
 text = "Вы уверены? Весь прогресс будет удалён навсегда!"
 
-[node name="NewGameDialog" type="ConfirmationDialog" parent="."]
+[node name="NewGameDialog" type="ConfirmationDialog" parent="." unique_name_in_owner=true]
 title = "Новая игра"
 text = "Начать новую игру? Текущий прогресс будет сохранён."

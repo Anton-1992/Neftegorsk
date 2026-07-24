@@ -1,1 +1,171 @@
-name: Build Android APK on: push: branches: [ arena/019f8138-neftegorsk ] tags: [ 'v*' ] pull_request: branches: [ arena/019f8138-neftegorsk ] workflow_dispatch: permissions: contents: write jobs: build: name: Build APK runs-on: ubuntu-latest timeout-minutes: 45 env: GODOT_VERSION: "4.3" EXPORT_NAME: "Android" PROJECT_PATH: "./project" BUILD_DIR: "./builds" steps: - name: Checkout repository uses: actions/checkout@v4 with: lfs: true - name: Setup Godot uses: firebelley/godot-export@v6.0.0 with: godot_executable_download_url: https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip godot_export_templates_download_url: https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz relative_project_path: ${{ env.PROJECT_PATH }} - name: Create build directory run: mkdir -p ${{ env.BUILD_DIR }} - name: Create debug keystore run: | mkdir -p ~/.local/share/godot/app_userdata/Neftegorsk keytool -genkey -v \ -keystore ~/.local/share/godot/app_userdata/Neftegorsk/debug.keystore \ -alias androiddebugkey \ -keyalg RSA \ -keysize 2048 \ -validity 10000 \ -storepass android \ -keypass android \ -dname "CN=Android Debug,O=Android,C=US" \ 2>/dev/null || true - name: Install Android SDK uses: android-actions/setup-android@v3 with: api-level: 34 ndk-version: r26c cmdline-tools-version: latest - name: Accept Android licenses run: yes | sdkmanager --licenses - name: Configure Android SDK for Godot run: | echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT}" >> $GITHUB_ENV echo "ANDROID_NDK_ROOT=${ANDROID_NDK_HOME}" >> $GITHUB_ENV echo "JAVA_HOME=${JAVA_HOME}" >> $GITHUB_ENV - name: Verify project structure run: | ls -la ${{ env.PROJECT_PATH }}/ cat ${{ env.PROJECT_PATH }}/export_presets.cfg - name: Export DEBUG APK (works with auto debug keystore) run: | cd ${{ env.PROJECT_PATH }} godot --headless --export-debug "${{ env.EXPORT_NAME }}" ../${{ env.BUILD_DIR }}/Neftegorsk.apk 2>&1 echo "Export exit code: $?" - name: Verify APK run: | ls -la ${{ env.BUILD_DIR }}/ file ${{ env.BUILD_DIR }}/Neftegorsk.apk unzip -l ${{ env.BUILD_DIR }}/Neftegorsk.apk | head -20 - name: Upload APK as artifact uses: actions/upload-artifact@v4 with: name: Neftegorsk-APK path: ${{ env.BUILD_DIR }}/Neftegorsk.apk retention-days: 30 - name: Create Release (on tags) if: startsWith(github.ref, 'refs/tags/') uses: softprops/action-gh-release@v2 with: files: ${{ env.BUILD_DIR }}/Neftegorsk.apk generate_release_notes: true env: GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+name: Build Android APK
+
+on:
+  push:
+    branches: [ arena/019f868c-neftegorsk ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ arena/019f868c-neftegorsk ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      EXPORT_NAME: "Android"
+      PROJECT_PATH: "./project"
+      BUILD_DIR: "./builds"
+
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: true }
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install Godot 4.3 + Export Templates
+        run: |
+          wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip -O godot.zip
+          unzip -o godot.zip
+          mv Godot_v4.3-stable_linux.x86_64 /usr/local/bin/godot
+          chmod +x /usr/local/bin/godot
+          wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz -O templates.tpz
+          mkdir -p ~/.local/share/godot/export_templates/4.3.stable
+          unzip -o templates.tpz
+          cp -r templates/* ~/.local/share/godot/export_templates/4.3.stable/
+          rm -rf templates
+          ls ~/.local/share/godot/export_templates/4.3.stable/android_debug.apk || echo "NO android_debug.apk!"
+
+      - name: Create build directory
+        run: mkdir -p ${{ env.BUILD_DIR }}
+
+      - name: Install Android SDK + NDK + Debug Keystore
+        run: |
+          ANDROID_HOME=/opt/android-sdk
+          mkdir -p $ANDROID_HOME/cmdline-tools
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdlinetools.zip
+          unzip -o cmdlinetools.zip -d $ANDROID_HOME/cmdline-tools/
+          mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
+          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME
+          yes | sdkmanager --licenses
+          sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+          sdkmanager "ndk;26.1.10909125"
+          mkdir -p ~/.android
+          keytool -genkey -v -keystore ~/.android/debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US" 2>/dev/null || true
+
+      - name: Create editor_settings BEFORE any Godot invocation
+        run: |
+          mkdir -p ~/.config/godot
+          godot --headless -e --quit 2>&1 | tail -3 || true
+          JAVA_PATH=$(dirname $(dirname $(readlink -f $(which java))))
+          SETTINGS=~/.config/godot/editor_settings-4.3.tres
+          sed -i '/export\/android\//d' "$SETTINGS"
+          echo "export/android/android_sdk_path = \"/opt/android-sdk\"" >> "$SETTINGS"
+          echo "export/android/java_sdk_path = \"$JAVA_PATH\"" >> "$SETTINGS"
+          echo "export/android/debug_keystore = \"$HOME/.android/debug.keystore\"" >> "$SETTINGS"
+          echo 'export/android/debug_keystore_user = "androiddebugkey"' >> "$SETTINGS"
+          echo 'export/android/debug_keystore_pass = "android"' >> "$SETTINGS"
+          echo 'export/android/force_system_user = false' >> "$SETTINGS"
+          echo 'export/android/timestamping_authority_url = ""' >> "$SETTINGS"
+          echo 'export/android/shutdown_adb_on_exit = true' >> "$SETTINGS"
+
+      - name: Fix project config BEFORE import
+        run: |
+          cd ${{ env.PROJECT_PATH }}
+
+          # ETC2/ASTC texture compression (required for Android export on Linux)
+          if ! grep -q "import_etc2_astc" project.godot; then
+            sed -i '/\[rendering\]/a textures/vram_compression/import_etc2_astc=true' project.godot
+          fi
+
+          # Mobile renderer (forward_plus hangs on Android)
+          sed -i 's|rendering_method/renderer="forward_plus"|rendering_method/renderer="mobile"|' project.godot
+
+          # CRITICAL: embed PCK in APK (without this, game data is missing = freeze)
+          sed -i 's|use_embedded_pck=false|use_embedded_pck=true|' export_presets.cfg
+
+          # Other export fixes
+          sed -i 's|runnable=false|runnable=true|g' export_presets.cfg
+          sed -i 's|export_path="builds/Neftegorsk.apk"|export_path="Neftegorsk.apk"|g' export_presets.cfg
+          sed -i '/gradle_build\/use_gradle_build/d' export_presets.cfg
+          sed -i 's|android/keystore/debug="[^"]*"|android/keystore/debug=""|g' export_presets.cfg
+          sed -i 's|android/keystore/debug_user="[^"]*"|android/keystore/debug_user=""|g' export_presets.cfg
+          sed -i 's|android/keystore/debug_password="[^"]*"|android/keystore/debug_password=""|g' export_presets.cfg
+
+          echo "=== KEY SETTINGS ==="
+          grep "import_etc2_astc" project.godot
+          grep "rendering_method/renderer" project.godot
+          grep "use_embedded_pck" export_presets.cfg
+
+      - name: Import project
+        run: |
+          cd ${{ env.PROJECT_PATH }}
+          godot --headless --import 2>&1 || true
+
+      - name: Re-apply fixes AFTER import (Godot may overwrite)
+        run: |
+          cd ${{ env.PROJECT_PATH }}
+          sed -i 's|rendering_method/renderer="forward_plus"|rendering_method/renderer="mobile"|' project.godot
+          if ! grep -q "import_etc2_astc" project.godot; then
+            sed -i '/\[rendering\]/a textures/vram_compression/import_etc2_astc=true' project.godot
+          fi
+          sed -i 's|use_embedded_pck=false|use_embedded_pck=true|' export_presets.cfg
+          echo "=== VERIFIED AFTER IMPORT ==="
+          grep "import_etc2_astc" project.godot
+          grep "rendering_method/renderer" project.godot
+          grep "use_embedded_pck" export_presets.cfg
+
+      - name: Re-inject editor_settings after import
+        run: |
+          JAVA_PATH=$(dirname $(dirname $(readlink -f $(which java))))
+          SETTINGS="$HOME/.config/godot/editor_settings-4.3.tres"
+          sed -i '/export\/android\//d' "$SETTINGS"
+          echo "export/android/android_sdk_path = \"/opt/android-sdk\"" >> "$SETTINGS"
+          echo "export/android/java_sdk_path = \"$JAVA_PATH\"" >> "$SETTINGS"
+          echo "export/android/debug_keystore = \"$HOME/.android/debug.keystore\"" >> "$SETTINGS"
+          echo 'export/android/debug_keystore_user = "androiddebugkey"' >> "$SETTINGS"
+          echo 'export/android/debug_keystore_pass = "android"' >> "$SETTINGS"
+          echo 'export/android/force_system_user = false' >> "$SETTINGS"
+          echo 'export/android/timestamping_authority_url = ""' >> "$SETTINGS"
+          echo 'export/android/shutdown_adb_on_exit = true' >> "$SETTINGS"
+
+      - name: Export APK
+        run: |
+          cd ${{ env.PROJECT_PATH }}
+          echo "=== EXPORT ==="
+          godot --headless --verbose --export-debug "Android" Neftegorsk.apk 2>&1
+          echo "=== Result ==="
+          ls -la *.apk 2>/dev/null || echo "NO APK"
+          if [ -f Neftegorsk.apk ]; then
+            mkdir -p ../builds
+            cp Neftegorsk.apk ../builds/Neftegorsk.apk
+            echo "APK exported!"
+          else
+            echo "Export failed"
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: Neftegorsk-APK
+          path: ${{ env.BUILD_DIR }}/Neftegorsk.apk
+          retention-days: 30
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.BUILD_DIR }}/Neftegorsk.apk
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

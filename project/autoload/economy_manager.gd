@@ -30,12 +30,14 @@ var competitor_stations: Dictionary = {}  # competitor_id -> station count
 var competitor_cash: Dictionary = {}  # competitor_id -> cash
 
 # Player stations
-var player_stations: Array[Dictionary] = []  # Each: {id, level, price, storage, pumps, upgrades}
+var player_stations: Array = []  # Each: {id, level, price, storage, pumps, upgrades}
 var player_cash: int = 50000
 var player_reputation: float = 1.0  # 0.5 to 2.0
 
 func _ready() -> void:
+	DebugLogger.log_node_ready("EconomyManager", true, "start _ready")
 	_reset_market()
+	DebugLogger.log_node_ready("EconomyManager", true, "done")
 
 func _reset_market() -> void:
 	current_market_price = BASE_FUEL_PRICE
@@ -72,7 +74,8 @@ func initialize_level(level_data: Resource, map_data: Dictionary) -> void:
 	})
 	
 	# Initialize competitors from map
-	for i, opp_station in enumerate(map_data.opponent_stations):
+	for i in range(map_data.opponent_stations.size()):
+		var opp_station = map_data.opponent_stations[i]
 		var archetype_id = opp_station.archetype
 		var archetype = _get_archetype_data(archetype_id)
 		
@@ -262,11 +265,11 @@ func _check_auto_resupply() -> void:
 	for station in player_stations:
 		if station.current_fuel < station.storage_capacity * 0.3:
 			# Check if player has auto-order upgrade
-			var has_auto = GameManager.has_upgrade("logistics_auto_order") if hasattr(GameManager, "has_upgrade") else false
-			if has_auto:
-				var order_amount = station.storage_capacity - station.current_fuel
-				var cost = int(order_amount * wholesale_price)
-				if GameManager.spend_cash(cost) if hasattr(GameManager, "spend_cash") else true:
+		var has_auto = GameManager.has_upgrade("logistics_auto_order")
+		if has_auto:
+			var order_amount = station.storage_capacity - station.current_fuel
+			var cost = int(order_amount * wholesale_price)
+			if GameManager.spend_cash(cost):
 					station.current_fuel = station.storage_capacity
 					supply_delivered.emit(order_amount, cost)
 
@@ -316,7 +319,7 @@ func buy_opponent_station(comp_id: int, station_index: int) -> bool:
 	
 	# Calculate buyout price based on opponent loyalty, player reputation
 	var archetype = _get_archetype_data("local")  # Simplified
-	var loyalty = archetype.loyalty if hasattr(archetype, "loyalty") else 1.0
+	var loyalty = archetype.loyalty if archetype != null else 1.0
 	var base_price = 50000 * station_count
 	var multiplier = loyalty * (2.0 - player_reputation)
 	var price = int(base_price * multiplier)
