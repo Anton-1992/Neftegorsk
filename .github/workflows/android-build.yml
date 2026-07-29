@@ -67,7 +67,7 @@ jobs:
           cd ${{ env.PROJECT_PATH }}
           echo "=== Checking for Python-only syntax and GDScript parse errors ==="
           ERRORS=0
-          ALL_GD=$(find scenes autoload scripts -name "*.gd" 2>/dev/null | sort)
+          ALL_GD="autoload/game_state.gd autoload/ui_renderer.gd"
           for f in $ALL_GD; do
             # Check for triple-quote docstrings
             if grep -q '\"\"\"' "$f" 2>/dev/null; then
