@@ -218,7 +218,9 @@ func _update_currency() -> void:
 func _format_number(num: int) -> String:
 	var str = str(num)
 	var result = ""
-	for i, ch in enumerate(str.reversed()):
+	var _ei = 0
+	for ch in str.reversed():
+		_ei += 1
 		if i > 0 and i % 3 == 0:
 			result = " " + result
 		result = ch + result

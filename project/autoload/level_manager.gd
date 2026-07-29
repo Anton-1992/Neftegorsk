@@ -3,7 +3,6 @@
 
 extends Node
 
-class_name LevelManager
 
 signal level_unlocked(level_id: StringName)
 signal district_unlocked(district_id: StringName)
@@ -432,7 +431,7 @@ func is_district_unlocked(district_id: StringName) -> bool:
 	return district_id not in locked_districts
 
 func generate_level_map(level_data: LevelData, force_new_seed: bool = false) -> Dictionary:
-	"""Procedurally generate a level map based on district parameters"""
+# Procedurally generate a level map based on district parameters
 	var cache_key = "%s_%d".format([level_data.level_id, level_data.seed])
 	if not force_new_seed and generated_maps.has(cache_key):
 		return generated_maps[cache_key]
@@ -550,8 +549,11 @@ func _generate_buildings(map_data: Dictionary, district: DistrictData, rng: Rand
 			if map_data.tiles[y][x] == 0 and rng.randi_range(100) < density * 100:
 				# Check if adjacent to road
 				var near_road = false
-				for dx, dy in [(0,1),(0,-1),(1,0),(-1,0)]:
-					var nx, ny = x + dx, y + dy
+				for d in [[0,1],[0,-1],[1,0],[-1,0]]:
+					var dx = d[0]
+					var dy = d[1]
+					var nx = x + dx
+					var ny = y + dy
 					if nx >= 0 and nx < size and ny >= 0 and ny < size:
 						if map_data.tiles[ny][nx] == 1:
 							near_road = true
@@ -598,8 +600,11 @@ func _calculate_traffic(map_data: Dictionary, district: DistrictData, rng: Rando
 		for x in range(size):
 			if map_data.tiles[y][x] == 1:  # Road
 				var connections = 0
-				for dx, dy in [(0,1),(0,-1),(1,0),(-1,0)]:
-					var nx, ny = x + dx, y + dy
+				for d in [[0,1],[0,-1],[1,0],[-1,0]]:
+					var dx = d[0]
+					var dy = d[1]
+					var nx = x + dx
+					var ny = y + dy
 					if nx >= 0 and nx < size and ny >= 0 and ny < size:
 						if map_data.tiles[ny][nx] == 1:
 							connections += 1
@@ -607,8 +612,11 @@ func _calculate_traffic(map_data: Dictionary, district: DistrictData, rng: Rando
 				if connections >= 3:  # Intersection
 					var traffic = base_traffic * (1.0 + connections * 0.2)
 					# Boost near buildings
-					for dx, dy in [(0,1),(0,-1),(1,0),(-1,0),(1,1),(-1,1),(1,-1),(-1,-1)]:
-						var nx, ny = x + dx, y + dy
+					for d in [[0,1],[0,-1],[1,0],[-1,0],[1,1],[-1,1],[1,-1],[-1,-1]]:
+						var dx = d[0]
+						var dy = d[1]
+						var nx = x + dx
+						var ny = y + dy
 						if nx >= 0 and nx < size and ny >= 0 and ny < size:
 							if map_data.tiles[ny][nx] == 2:
 								traffic *= 1.1
@@ -675,8 +683,11 @@ func _place_opponent_stations(map_data: Dictionary, district: DistrictData, leve
 			var station_pos = node.pos
 			if s > 0:
 				# Find adjacent road
-				for dx, dy in [(0,1),(0,-1),(1,0),(-1,0),(1,1),(-1,1),(1,-1),(-1,-1)]:
-					var nx, ny = node.pos.x + dx, node.pos.y + dy
+				for d in [[0,1],[0,-1],[1,0],[-1,0],[1,1],[-1,1],[1,-1],[-1,-1]]:
+					var dx = d[0]
+					var dy = d[1]
+					var nx = node.pos.x + dx
+					var ny = node.pos.y + dy
 					if nx >= 0 and nx < map_data.grid_size and ny >= 0 and ny < map_data.grid_size:
 						if map_data.tiles[ny][nx] == 1:
 							station_pos = Vector2i(nx, ny)

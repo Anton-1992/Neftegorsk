@@ -50,7 +50,7 @@ extends Resource
 @export var levels_per_district: int = 4  # How many levels in this district
 
 func _validate_property(property_name: String) -> bool:
-	"""Validate district data integrity"""
+# Validate district data integrity
 	if district_id == "":
 		push_error("DistrictData: district_id cannot be empty")
 		return false
@@ -66,7 +66,7 @@ func get_level_count() -> int:
 	return levels_per_district
 
 func get_difficulty_rating() -> float:
-	"""Composite difficulty for progression balancing"""
+# Composite difficulty for progression balancing
 	return (density * 0.3 + road_complexity * 0.2 +
 	        opponent_aggression * 0.3 +
 	        (max_opponents / 5.0) * 0.2)

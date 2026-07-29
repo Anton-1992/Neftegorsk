@@ -72,7 +72,7 @@ func _connect_signals() -> void:
 	GameManager.game_state_changed.connect(_on_game_state_changed)
 
 func _create_district_map() -> void:
-	"""Create district buttons on the map (St. Petersburg style layout)"""
+# Create district buttons on the map (St. Petersburg style layout)
 	var districts = LevelManager.get_districts_in_order()
 	
 	# Approximate St. Petersburg district positions on normalized map (0-1)

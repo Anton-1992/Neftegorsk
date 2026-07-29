@@ -3,7 +3,6 @@
 
 extends Node
 
-class_name AudioManager
 
 # Volume settings (0.0 - 1.0)
 var music_volume: float = 0.7

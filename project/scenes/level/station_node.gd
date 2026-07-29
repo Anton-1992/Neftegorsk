@@ -56,7 +56,7 @@ func _ready() -> void:
 	add_child(player)
 
 func _setup_textures() -> void:
-	"""Load all station textures"""
+# Load all station textures
 	var paths = {
 		"standard": "res://assets/ui/station_standard.png",
 		"premium": "res://assets/ui/station_premium.png",
@@ -171,21 +171,21 @@ func set_owner_archetype(archetype: StringName) -> void:
 	_apply_station_type(station_type)
 
 func play_fuel_animation() -> void:
-	"""Play a quick 'fueling' animation"""
+# Play a quick 'fueling' animation
 	var tween = create_tween()
 	tween.tween_property(sprite, "modulate", Color(1, 1, 0.5, 1), 0.1)
 	tween.tween_property(sprite, "modulate", Color(1, 1, 1, 1), 0.1)
 	AudioManager.sfx_fuel_pump()
 
 func play_purchase_animation() -> void:
-	"""Play station purchase animation"""
+# Play station purchase animation
 	var tween = create_tween()
 	tween.tween_property(self, "scale", Vector2(1.2, 1.2), 0.2).set_trans(Tween.TRANS_ELASTIC)
 	tween.tween_property(self, "scale", Vector2(1.0, 1.0), 0.3).set_trans(Tween.TRANS_ELASTIC)
 	AudioManager.sfx_station_buy()
 
 func play_upgrade_animation() -> void:
-	"""Play upgrade animation"""
+# Play upgrade animation
 	var tween = create_tween()
 	tween.tween_property(sprite, "modulate", Color(0.5, 1, 0.5, 1), 0.15)
 	tween.tween_property(sprite, "modulate", Color(1, 1, 1, 1), 0.15)

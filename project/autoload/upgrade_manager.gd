@@ -3,7 +3,6 @@
 
 extends Node
 
-class_name UpgradeManager
 
 signal upgrade_purchased(upgrade_id: StringName)
 signal upgrade_refunded(upgrade_id: StringName)
@@ -60,7 +59,7 @@ func get_purchased_upgrades(owned: Array[StringName]) -> Array[UpgradeData]:
 	return result
 
 func get_upgrade_tree_layout() -> Dictionary:
-	"""Returns structured data for UI tree rendering"""
+# Returns structured data for UI tree rendering
 	var layout = {}
 	for cat in category_order:
 		var cat_upgrades = get_upgrades_by_category(cat)
@@ -102,7 +101,7 @@ func _category_color(cat: int) -> Color:
 		_: return Color(0.5, 0.5, 0.5)
 
 func get_prerequisite_chain(upgrade_id: StringName) -> Array[StringName]:
-	"""Get all transitive prerequisites for an upgrade"""
+# Get all transitive prerequisites for an upgrade
 	var result = []
 	var visited = []
 	_collect_prereqs(upgrade_id, result, visited)
@@ -149,7 +148,7 @@ func calculate_total_cash_cost(upgrade_ids: Array[StringName]) -> int:
 	return total
 
 func get_combined_effects(owned_upgrades: Array[StringName]) -> Dictionary:
-	"""Combine all effects from owned upgrades"""
+# Combine all effects from owned upgrades
 	var combined = {}
 	for uid in owned_upgrades:
 		var upg = upgrades.get(uid)
@@ -170,21 +169,21 @@ func get_combined_effects(owned_upgrades: Array[StringName]) -> Dictionary:
 	return combined
 
 func apply_upgrades_to_station(station: Node, owned_upgrades: Array[StringName]) -> void:
-	"""Apply all relevant upgrade effects to a station node"""
+# Apply all relevant upgrade effects to a station node
 	for uid in owned_upgrades:
 		var upg = upgrades.get(uid)
 		if upg and (upg.category == UpgradeData.UpgradeCategory.STATION or upg.category == UpgradeData.UpgradeCategory.SPECIAL):
 			upg.apply_effects(station)
 
 func apply_upgrades_to_player(player: Node, owned_upgrades: Array[StringName]) -> void:
-	"""Apply player-wide upgrades (marketing, personnel, tech)"""
+# Apply player-wide upgrades (marketing, personnel, tech)
 	for uid in owned_upgrades:
 		var upg = upgrades.get(uid)
 		if upg and upg.category != UpgradeData.UpgradeCategory.STATION:
 			upg.apply_effects(player)
 
 func get_next_upgrades_in_path(owned: Array[StringName]) -> Array[UpgradeData]:
-	"""Get upgrades that are one step away from current owned set"""
+# Get upgrades that are one step away from current owned set
 	var result = []
 	var owned_set = owned.duplicate()
 	
@@ -217,7 +216,7 @@ func get_next_upgrades_in_path(owned: Array[StringName]) -> Array[UpgradeData]:
 	return result
 
 func reset_upgrade(upgrade_id: StringName, owned_upgrades: Array[StringName]) -> bool:
-	"""Refund an upgrade (for testing or respect system)"""
+# Refund an upgrade (for testing or respect system)
 	if upgrade_id not in owned_upgrades:
 		return false
 	

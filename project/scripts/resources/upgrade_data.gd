@@ -74,11 +74,11 @@ func can_purchase(owned_upgrades: Array[StringName], player_level: int, availabl
 	
 	return true
 
-func get_effect_value(effect_key: String, default: Variant = 0) -> Variant:
+func get_effect_value(effect_key, default = 0):
 	return effects.get(effect_key, default)
 
 func apply_effects(target: Object) -> void:
-	"""Apply effects to a target object (station, player, etc.)"""
+# Apply effects to a target object (station, player, etc.)
 	for key, value in effects:
 		if target.has_method("apply_upgrade_effect"):
 			target.apply_upgrade_effect(key, value)
@@ -91,7 +91,7 @@ func apply_effects(target: Object) -> void:
 				target.set(key, str(value))
 
 static func create_upgrade_tree() -> Dictionary:
-	"""Factory for the full upgrade tree (Homescapes-style)"""
+# Factory for the full upgrade tree (Homescapes-style)
 	var upgrades = {}
 	
 	# ===== STATION UPGRADES =====

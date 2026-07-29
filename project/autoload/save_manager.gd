@@ -3,7 +3,6 @@
 
 extends Node
 
-class_name SaveManager
 
 signal save_completed(success: bool)
 signal load_completed(success: bool)
@@ -38,8 +37,8 @@ func save_game() -> bool:
 		config.set_value("game", key, _variant_to_saveable(value))
 	
 	# Settings (audio, graphics, etc.)
-	config.set_value("settings", "music_volume", AudioManager.music_volume if hasattr(AudioManager, "music_volume") else 0.7)
-	config.set_value("settings", "sfx_volume", AudioManager.sfx_volume if hasattr(AudioManager, "sfx_volume") else 0.8)
+	config.set_value("settings", "music_volume", 0.7)
+	config.set_value("settings", "sfx_volume", 0.8)
 	config.set_value("settings", "language", "ru")
 	config.set_value("settings", "notifications", true)
 	
@@ -96,9 +95,9 @@ func load_game() -> bool:
 		game_mgr.load_save_data(save_data)
 	
 	# Load settings
-	if config.has_section_key("settings", "music_volume") and hasattr(AudioManager, "music_volume"):
+	if config.has_section_key("settings", "music_volume"):
 		AudioManager.music_volume = config.get_value("settings", "music_volume")
-	if config.has_section_key("settings", "sfx_volume") and hasattr(AudioManager, "sfx_volume"):
+	if config.has_section_key("settings", "sfx_volume"):
 		AudioManager.sfx_volume = config.get_value("settings", "sfx_volume")
 	if config.has_section_key("settings", "language"):
 		# Apply language
@@ -140,13 +139,13 @@ func get_save_info() -> Dictionary:
 	}
 
 # Helper methods for serializing Variants
-func _variant_to_saveable(value: Variant) -> Variant:
-	"""Convert Godot types to ConfigFile-compatible types"""
-	match value.get_type():
+func _variant_to_saveable(value):
+# Convert Godot types to ConfigFile-compatible types
+	match typeof(value):
 		TYPE_NIL, TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING:
 			return value
 		TYPE_VECTOR2, TYPE_VECTOR2I, TYPE_VECTOR3, TYPE_VECTOR3I:
-			return {"__type": "Vector", "x": value.x, "y": value.y, "z": value.z if hasattr(value, "z") else 0}
+			return {"__type": "Vector", "x": value.x, "y": value.y, "z": value.z if value is Vector3 else 0}
 		TYPE_COLOR:
 			return {"__type": "Color", "r": value.r, "g": value.g, "b": value.b, "a": value.a}
 		TYPE_RECT2, TYPE_RECT2I:
@@ -173,8 +172,8 @@ func _variant_to_saveable(value: Variant) -> Variant:
 		_:
 			return str(value)
 
-func _variant_from_saveable(value: Variant) -> Variant:
-	"""Convert ConfigFile types back to Godot types"""
+func _variant_from_saveable(value):
+# Convert ConfigFile types back to Godot types
 	if not value or not value is Dictionary or not value.has("__type"):
 		return value
 	

@@ -3,7 +3,6 @@
 
 extends Node
 
-class_name EconomyManager
 
 signal price_changed(new_price: float)
 signal supply_delivered(amount: int, cost: int)
@@ -48,7 +47,7 @@ func _reset_market() -> void:
 	competitor_cash.clear()
 
 func initialize_level(level_data: Resource, map_data: Dictionary) -> void:
-	"""Set up economy for a new level"""
+# Set up economy for a new level
 	_reset_market()
 	
 	current_market_price = level_data.market_base_price
@@ -72,17 +71,19 @@ func initialize_level(level_data: Resource, map_data: Dictionary) -> void:
 	})
 	
 	# Initialize competitors from map
-	for i, opp_station in enumerate(map_data.opponent_stations):
+	var _opp_idx = 0
+	for opp_station in map_data.opponent_stations:
 		var archetype_id = opp_station.archetype
 		var archetype = _get_archetype_data(archetype_id)
 		
-		var comp_id = i + 1
+		var comp_id = _opp_idx + 1
 		competitor_stations[comp_id] = opp_station.owner_index + 1  # Station count for this opponent
 		competitor_cash[comp_id] = 30000  # Will be overridden by level data
 		
 		# Set initial price based on archetype
 		var base_price = current_market_price * archetype.base_price_modifier
 		competitor_prices[comp_id] = clamp(base_price, MIN_FUEL_PRICE, MAX_FUEL_PRICE)
+		_opp_idx += 1
 	
 	player_cash = 50000  # Will be overridden by level data
 
@@ -101,7 +102,7 @@ func _get_archetype_data(archetype_id: StringName) -> Resource:
 	return defaults
 
 func simulate_hour(delta_hours: float = 1.0) -> Dictionary:
-	"""Simulate one hour of market activity. Returns summary."""
+# Simulate one hour of market activity. Returns summary.
 	var summary = {
 		"player_revenue": 0,
 		"player_fuel_sold": 0,
@@ -146,7 +147,7 @@ func simulate_hour(delta_hours: float = 1.0) -> Dictionary:
 	return summary
 
 func _calculate_demand_curve(hour: float) -> float:
-	"""Typical daily demand curve: peaks at 8am, 1pm, 6pm"""
+# Typical daily demand curve: peaks at 8am, 1pm, 6pm
 	var peaks = [8.0, 13.0, 18.0]
 	var base = 0.5
 	for peak in peaks:
@@ -157,7 +158,7 @@ func _calculate_demand_curve(hour: float) -> float:
 	return clamp(base, 0.3, 1.5)
 
 func _simulate_station_sales(station: Dictionary, demand: float, hours: float) -> int:
-	"""Simulate fuel sales for a station"""
+# Simulate fuel sales for a station
 	# Base traffic depends on location (would come from map traffic nodes)
 	var base_traffic = 50 * hours  # vehicles per hour
 	
@@ -188,7 +189,7 @@ func _get_average_competitor_price() -> float:
 	return sum / competitor_prices.size()
 
 func _simulate_competitors(delta_hours: float, summary: Dictionary) -> void:
-	"""AI competitors adjust prices, expand, upgrade"""
+# AI competitors adjust prices, expand, upgrade
 	for comp_id in competitor_prices.keys():
 		var archetype = _get_archetype_data("opportunist")  # Simplified
 		var current_price = competitor_prices[comp_id]
@@ -227,7 +228,7 @@ func _simulate_competitors(delta_hours: float, summary: Dictionary) -> void:
 				summary.competitor_actions.append({"id": comp_id, "action": "expand_attempt"})
 
 func _calculate_market_price(summary: Dictionary) -> float:
-	"""Calculate new market equilibrium price"""
+# Calculate new market equilibrium price
 	# Supply/demand balance
 	var total_supply = 0
 	for station in player_stations:
@@ -245,7 +246,7 @@ func _calculate_market_price(summary: Dictionary) -> float:
 	return clamp(new_price, MIN_FUEL_PRICE, MAX_FUEL_PRICE)
 
 func _apply_daily_costs(summary: Dictionary) -> void:
-	"""Apply daily operating costs to all stations"""
+# Apply daily operating costs to all stations
 	for station in player_stations:
 		var cost = station.daily_cost
 		player_cash -= cost
@@ -258,15 +259,21 @@ func _apply_daily_costs(summary: Dictionary) -> void:
 		competitor_cash[comp_id] -= cost
 
 func _check_auto_resupply() -> void:
-	"""Auto-order fuel when low (if upgrade owned)"""
+# Auto-order fuel when low (if upgrade owned)
 	for station in player_stations:
 		if station.current_fuel < station.storage_capacity * 0.3:
 			# Check if player has auto-order upgrade
-			var has_auto = GameManager.has_upgrade("logistics_auto_order") if hasattr(GameManager, "has_upgrade") else false
+			var gm = get_node_or_null("/root/GameManager")
+		var has_auto = false
+		if gm != null and gm.has_method("has_upgrade"):
+			has_auto = gm.has_upgrade("logistics_auto_order")
 			if has_auto:
 				var order_amount = station.storage_capacity - station.current_fuel
 				var cost = int(order_amount * wholesale_price)
-				if GameManager.spend_cash(cost) if hasattr(GameManager, "spend_cash") else true:
+				var spent = false
+			if gm != null and gm.has_method("spend_cash"):
+				spent = gm.spend_cash(cost)
+			if spent:
 					station.current_fuel = station.storage_capacity
 					supply_delivered.emit(order_amount, cost)
 
@@ -306,7 +313,7 @@ func upgrade_station(station_id: int, upgrade_type: String, cost: int) -> bool:
 	return false
 
 func buy_opponent_station(comp_id: int, station_index: int) -> bool:
-	"""Buy out an opponent's station"""
+# Buy out an opponent's station
 	if not competitor_stations.has(comp_id):
 		return false
 	
@@ -316,7 +323,7 @@ func buy_opponent_station(comp_id: int, station_index: int) -> bool:
 	
 	# Calculate buyout price based on opponent loyalty, player reputation
 	var archetype = _get_archetype_data("local")  # Simplified
-	var loyalty = archetype.loyalty if hasattr(archetype, "loyalty") else 1.0
+	var loyalty = archetype.get("loyalty", 1.0)
 	var base_price = 50000 * station_count
 	var multiplier = loyalty * (2.0 - player_reputation)
 	var price = int(base_price * multiplier)

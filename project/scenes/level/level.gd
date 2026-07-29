@@ -157,7 +157,7 @@ func _initialize_level() -> void:
 	AudioManager.play_district_ambient(district_data.district_id)
 
 func _setup_tilemaps() -> void:
-	"""Create shared TileSet for all tilemaps"""
+# Create shared TileSet for all tilemaps
 	var tile_set = TileMapSetup.create_composite_tile_set()
 	
 	ground_tilemap.tile_set = tile_set.duplicate()
@@ -172,7 +172,7 @@ func _setup_tilemaps() -> void:
 	park_tilemap.set_layer_z_index(0, 2)
 
 func _render_map_with_tiles() -> void:
-	"""Render procedural map using TileMap"""
+# Render procedural map using TileMap
 	var size = map_data.grid_size
 	
 	# Clear all layers
@@ -252,7 +252,7 @@ func _render_map_with_tiles() -> void:
 			road_tilemap.set_cell(0, pos, 0, Vector2i(TILE.CROSSWALK % 8, TILE.CROSSWALK / 8))
 
 func _get_road_tile(orientation: String, ground_tiles: Array[String]) -> int:
-	"""Get appropriate road tile ID for district"""
+# Get appropriate road tile ID for district
 	var base = "ROAD_BASE"
 	if "HIGHWAY" in ground_tiles: base = "HIGHWAY"
 	elif "DIRT_ROAD" in ground_tiles: base = "DIRT_ROAD"

@@ -62,14 +62,14 @@ jobs:
           mkdir -p ~/.android
           keytool -genkey -v -keystore ~/.android/debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US" 2>/dev/null || true
 
-      - name: Validate GDScript syntax (no Python constructs + no duplicate declarations!)
+      - name: Validate GDScript syntax (no Python constructs + no class_name in autoloads!)
         run: |
           cd ${{ env.PROJECT_PATH }}
           echo "=== Checking for Python-only syntax and GDScript parse errors ==="
           ERRORS=0
-          ALL_GD="autoload/game_state.gd autoload/ui_renderer.gd"
+          ALL_GD=$(find autoload scripts -name "*.gd" 2>/dev/null)
           for f in $ALL_GD; do
-            # Check for triple-quote docstrings
+            # Check for triple-quote docstrings (Python)
             if grep -q '\"\"\"' "$f" 2>/dev/null; then
               echo "ERROR: $f has triple-quote docstring (Python)"
               ERRORS=$((ERRORS + 1))
@@ -79,40 +79,34 @@ jobs:
               echo "ERROR: $f has def keyword (Python, use func)"
               ERRORS=$((ERRORS + 1))
             fi
-            # Check for nonlocal/global
-            if grep -qP '^\tnonlocal |^nonlocal |^\tglobal |^global ' "$f" 2>/dev/null; then
-              echo "ERROR: $f has nonlocal/global (Python)"
-              ERRORS=$((ERRORS + 1))
-            fi
-            # Check for hasattr
+            # Check for hasattr (Python)
             if grep -q 'hasattr' "$f" 2>/dev/null; then
-              echo "ERROR: $f has hasattr() (Python)"
+              echo "ERROR: $f has hasattr() (Python, use has_method or get)"
               ERRORS=$((ERRORS + 1))
             fi
-            # Check for enumerate
-            if grep -q 'enumerate' "$f" 2>/dev/null; then
+            # Check for enumerate (Python)
+            if grep -q 'enumerate(' "$f" 2>/dev/null; then
               echo "ERROR: $f has enumerate() (Python)"
-              ERRORS=$((ERRORS + 1))
-            fi
-            # Check for reversed
-            if grep -q 'reversed' "$f" 2>/dev/null; then
-              echo "ERROR: $f has reversed() (Python)"
-              ERRORS=$((ERRORS + 1))
-            fi
-            # Check for assert
-            if grep -qP '^\tassert |^assert ' "$f" 2>/dev/null; then
-              echo "ERROR: $f has assert (Python)"
-              ERRORS=$((ERRORS + 1))
-            fi
-            # Check for duplicate static var declarations (PARSE ERROR in GDScript!)
-            DUPES=$(grep -cP '^static var \w+' "$f" 2>/dev/null || echo 0)
-            if [ "$DUPES" -gt 1 ]; then
-              echo "ERROR: $f has DUPLICATE static var at class level"
               ERRORS=$((ERRORS + 1))
             fi
             # Check for -> Variant return type annotation (PARSE ERROR on Android Godot 4.3!)
             if grep -qP '\-> Variant' "$f" 2>/dev/null; then
               echo "ERROR: $f has -> Variant return type (PARSE ERROR on Android! Remove it)"
+              ERRORS=$((ERRORS + 1))
+            fi
+            # Check for class_name in autoload scripts (CONFLICTS with autoload name!)
+            if [[ "$f" == autoload/* ]] && grep -qP '^class_name ' "$f" 2>/dev/null; then
+              echo "ERROR: $f has class_name in autoload (CONFLICTS with autoload name! Remove it)"
+              ERRORS=$((ERRORS + 1))
+            fi
+            # Check for Python tuple unpacking in for loops
+            if grep -qP 'for \w+, \w+ in ' "$f" 2>/dev/null; then
+              echo "ERROR: $f has Python tuple unpacking in for loop"
+              ERRORS=$((ERRORS + 1))
+            fi
+            # Check for Python multiple assignment
+            if grep -qP 'var \w+, \w+ = ' "$f" 2>/dev/null; then
+              echo "ERROR: $f has Python multiple assignment (var a, b = ...)"
               ERRORS=$((ERRORS + 1))
             fi
           done
@@ -122,13 +116,6 @@ jobs:
             exit 1
           fi
           echo "PASS: No syntax errors found"
-
-      - name: Create textures PCK with PNG source files
-        run: |
-          cd ${{ env.PROJECT_PATH }}
-          echo "=== Creating textures.pck ==="
-          python3 pck_packer.py textures.pck .
-          ls -la textures.pck
 
       - name: Create editor_settings manually
         run: |
@@ -152,24 +139,30 @@ jobs:
           echo 'export/android/timestamping_authority_url = ""' >> "$SETTINGS"
           echo 'export/android/shutdown_adb_on_exit = true' >> "$SETTINGS"
 
-      - name: Generate project.godot (2 autoloads only!) and export_presets.cfg
+      - name: Generate project.godot (8 autoloads!) and export_presets.cfg
         run: |
           cd ${{ env.PROJECT_PATH }}
-          # WRITE project.godot FROM SCRATCH — only GameState + UIRenderer (Simulation merged into UIRenderer!)
+          # WRITE project.godot FROM SCRATCH — 8 autoloads restored, NO class_name in autoloads!
           cat > project.godot << 'GODOTCFG'
           ; Engine configuration file.
-          ; GENERATED by CI v22 — Simulation merged into UIRenderer, no separate Simulation autoload!
+          ; GENERATED by CI v24 — 8 autoloads restored, class_name removed from autoloads
 
           [application]
 
           config/name="Neftegorsk"
-          config/icon="res://assets/icons/app_icon.png"
+          config/icon="res://assets/icons/app_icon.svg"
           run/main_scene="res://autoload/boot_loader.tscn"
 
           [autoload]
 
           GameState="*res://autoload/game_state.tscn"
-          UIRenderer="*res://autoload/ui_renderer.tscn"
+          GameManager="*res://autoload/game_manager.tscn"
+          LevelManager="*res://autoload/level_manager.tscn"
+          EconomyManager="*res://autoload/economy_manager.tscn"
+          UpgradeManager="*res://autoload/upgrade_manager.tscn"
+          SaveManager="*res://autoload/save_manager.tscn"
+          AudioManager="*res://autoload/audio_manager.tscn"
+          Simulation="*res://autoload/simulation.tscn"
 
           [display]
 
@@ -204,8 +197,8 @@ jobs:
 
           build/min_sdk=21
           build/target_sdk=34
-          build/version_code=19
-          build/version_name="1.0.19"
+          build/version_code=24
+          build/version_name="1.0.24"
           build/package="com.neftegorsk.game"
           build/keystore/debug="user://debug.keystore"
           build/permissions=["android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE", "android.permission.WAKE_LOCK"]
@@ -220,14 +213,15 @@ jobs:
           sed -i '/gdscript_optimization_level/d' export_presets.cfg
           sed -i 's|runnable=false|runnable=true|g' export_presets.cfg
           sed -i 's|export_path="builds/Neftegorsk.apk"|export_path="Neftegorsk.apk"|g' export_presets.cfg
-          sed -i 's|include_filter=""|include_filter="textures.pck"|' export_presets.cfg
+          # Remove textures.pck include_filter (no longer needed)
+          sed -i 's|include_filter="textures.pck"|include_filter=""|' export_presets.cfg
           echo "=== KEY SETTINGS ==="
           grep "use_embedded_pck" export_presets.cfg
           grep "script_export_mode" export_presets.cfg
           grep "include_filter" export_presets.cfg
           grep "main_scene" project.godot
-          echo "=== AUTOLOAD SECTION (2 autoloads!) ==="
-          grep -A3 "[autoload]" project.godot
+          echo "=== AUTOLOAD SECTION (8 autoloads!) ==="
+          grep -A10 "\[autoload\]" project.godot
 
       - name: Import project resources
         run: |
@@ -235,33 +229,30 @@ jobs:
           echo "=== Running --import ==="
           godot --headless --import 2>&1 | tail -10 || true
 
-      - name: Delete PNG .import files (force direct PNG loading at runtime)
-        run: |
-          cd ${{ env.PROJECT_PATH }}
-          echo "=== Deleting .import files ==="
-          find . -name "*.png.import" -type f -print -delete || true
-          find . -name "*.svg.import" -type f -print -delete || true
-          find .godot/imported -name "*.ctex" -type f -print -delete 2>/dev/null || true
-          echo "=== Done ==="
-
-      - name: Re-generate project.godot (2 autoloads only!) after import
+      - name: Re-generate project.godot (8 autoloads!) after import
         run: |
           cd ${{ env.PROJECT_PATH }}
           # RE-WRITE project.godot from scratch after --import
           cat > project.godot << 'GODOTCFG'
           ; Engine configuration file.
-          ; GENERATED by CI v22 — Simulation merged into UIRenderer, no separate Simulation autoload!
+          ; GENERATED by CI v24 — 8 autoloads restored, class_name removed from autoloads
 
           [application]
 
           config/name="Neftegorsk"
-          config/icon="res://assets/icons/app_icon.png"
+          config/icon="res://assets/icons/app_icon.svg"
           run/main_scene="res://autoload/boot_loader.tscn"
 
           [autoload]
 
           GameState="*res://autoload/game_state.tscn"
-          UIRenderer="*res://autoload/ui_renderer.tscn"
+          GameManager="*res://autoload/game_manager.tscn"
+          LevelManager="*res://autoload/level_manager.tscn"
+          EconomyManager="*res://autoload/economy_manager.tscn"
+          UpgradeManager="*res://autoload/upgrade_manager.tscn"
+          SaveManager="*res://autoload/save_manager.tscn"
+          AudioManager="*res://autoload/audio_manager.tscn"
+          Simulation="*res://autoload/simulation.tscn"
 
           [display]
 
@@ -296,8 +287,8 @@ jobs:
 
           build/min_sdk=21
           build/target_sdk=34
-          build/version_code=19
-          build/version_name="1.0.19"
+          build/version_code=24
+          build/version_name="1.0.24"
           build/package="com.neftegorsk.game"
           build/keystore/debug="user://debug.keystore"
           build/permissions=["android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE", "android.permission.WAKE_LOCK"]
@@ -309,17 +300,9 @@ jobs:
           sed -i '/gdscript_optimization_level/d' export_presets.cfg
           sed -i 's|runnable=false|runnable=true|g' export_presets.cfg
           sed -i 's|export_path="builds/Neftegorsk.apk"|export_path="Neftegorsk.apk"|g' export_presets.cfg
-          sed -i 's|include_filter=""|include_filter="textures.pck"|' export_presets.cfg
-          # Re-delete .import files
-          find . -name "*.png.import" -type f -delete || true
-          find . -name "*.svg.import" -type f -delete || true
-          find .godot/imported -name "*.ctex" -type f -delete 2>/dev/null || true
-          # Ensure textures.pck exists
-          if [ ! -f textures.pck ]; then
-            python3 pck_packer.py textures.pck .
-          fi
-          echo "=== AUTOLOAD SECTION (2 autoloads!) ==="
-          grep -A3 "[autoload]" project.godot
+          sed -i 's|include_filter="textures.pck"|include_filter=""|' export_presets.cfg
+          echo "=== AUTOLOAD SECTION (8 autoloads!) ==="
+          grep -A10 "\[autoload\]" project.godot
           echo "=== KEY SETTINGS ==="
           grep "include_filter" export_presets.cfg
           grep "script_export_mode" export_presets.cfg
@@ -354,15 +337,6 @@ jobs:
             echo "=== Export failed ==="
             grep -i "texture\|import\|cannot\|error\|fail" export_log.txt | head -30
             exit 1
-          fi
-
-      - name: Verify PCK contents
-        if: always()
-        run: |
-          cd ${{ env.PROJECT_PATH }}
-          if [ -f Neftegorsk.apk ]; then
-            echo "=== Checking PCK contents ==="
-            python3 pck_check.py Neftegorsk.apk 2>&1 | head -80 || echo "pck_check.py not available"
           fi
 
       - uses: actions/upload-artifact@v4

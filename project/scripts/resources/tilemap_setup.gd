@@ -16,7 +16,7 @@ class_name TileMapSetup
 @export var atlas_grid: Vector2i = Vector2i(8, 8)  # 8x8 tiles per atlas
 
 static func create_tile_set(atlas_path: String, tile_size: Vector2i = Vector2i(64, 64), grid: Vector2i = Vector2i(8, 8)) -> TileSet:
-	"""Create a TileSet from an SVG atlas"""
+# Create a TileSet from an SVG atlas
 	var tile_set = TileSet.new()
 	
 	# Load texture from SVG (Godot 4 can load SVG as Texture2D)
@@ -44,7 +44,7 @@ static func create_tile_set(atlas_path: String, tile_size: Vector2i = Vector2i(6
 	return tile_set
 
 static func create_composite_tile_set() -> TileSet:
-	"""Create a combined TileSet with multiple sources for different layers"""
+# Create a combined TileSet with multiple sources for different layers
 	var tile_set = TileSet.new()
 	var tile_id = 0
 	

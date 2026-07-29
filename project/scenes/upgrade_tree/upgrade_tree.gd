@@ -58,7 +58,7 @@ func _connect_signals() -> void:
 	GameManager.upgrade_purchased.connect(_on_upgrade_purchased)
 
 func _build_tree() -> void:
-	"""Build the visual upgrade tree"""
+# Build the visual upgrade tree
 	# Clear existing
 	for child in upgrade_nodes_layer.get_children():
 		child.queue_free()
@@ -284,7 +284,7 @@ func _create_tier_stylebox(tier: int, color: Color) -> StyleBoxFlat:
 	return sb
 
 func _draw_category_connections(cat_data: Dictionary, cat_x: float, color: Color) -> void:
-	"""Draw connection lines between upgrade nodes"""
+# Draw connection lines between upgrade nodes
 	var tiers = cat_data.tiers
 	var sorted_tiers = tiers.keys()
 	sorted_tiers.sort()
@@ -412,7 +412,7 @@ func _on_upgrade_purchased(upgrade_id: StringName) -> void:
 	_refresh_tree()
 
 func _refresh_tree() -> void:
-	"""Redraw all nodes to reflect new state"""
+# Redraw all nodes to reflect new state
 	for upgrade_id, node in upgrade_nodes:
 		var btn = node.get_node("Btn")
 		if btn:

@@ -39,7 +39,7 @@ extends Resource
 @export var min_level: int = 1                      # Minimum level to appear
 
 func get_behavior_weights() -> Dictionary:
-	"""Returns weights for AI decision making"""
+# Returns weights for AI decision making
 	return {
 		"buy_station": expansion_drive * 10,
 		"upgrade_station": risk_tolerance * 5 * (1.0 if defensive_upgrades else 0.5),
@@ -49,13 +49,13 @@ func get_behavior_weights() -> Dictionary:
 	}
 
 func calculate_buyout_multiplier(player_reputation: float) -> float:
-	"""How much extra they demand to sell. Loyalty + reputation factor."""
+# How much extra they demand to sell. Loyalty + reputation factor.
 	var base = 1.0 + (loyalty - 1.0) * 0.5
 	var rep_factor = 1.0 - player_reputation * 0.2  # Better reputation = easier buyout
 	return base * rep_factor
 
 static func create_archetypes() -> Dictionary:
-	"""Factory method for default archetypes"""
+# Factory method for default archetypes
 	var archetypes = {}
 	
 	# The Shark - aggressive expansionist

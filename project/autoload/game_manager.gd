@@ -3,7 +3,6 @@
 
 extends Node
 
-class_name GameManager
 
 signal game_state_changed(state: String)
 signal level_started(level_data: Resource)
@@ -194,7 +193,7 @@ def purchase_upgrade(upgrade_id: StringName) -> bool:
 func has_upgrade(upgrade_id: StringName) -> bool:
 	return upgrade_id in owned_upgrades
 
-func get_upgrade_effect(effect_key: String, default: Variant = 0) -> Variant:
+func get_upgrade_effect(effect_key, default = 0):
 	var total = default
 	var is_multiplier = default is float or (default is int and default == 1)
 	
