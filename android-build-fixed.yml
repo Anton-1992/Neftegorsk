@@ -99,8 +99,8 @@ jobs:
               echo "ERROR: $f has class_name in autoload (CONFLICTS with autoload name! Remove it)"
               ERRORS=$((ERRORS + 1))
             fi
-            # Check for Python tuple unpacking in for loops
-            if grep -qP 'for \w+, \w+ in ' "$f" 2>/dev/null; then
+            # Check for Python tuple unpacking in for loops (array, not dict)
+            if grep -qP 'for \w+, \w+ in \[' "$f" 2>/dev/null; then
               echo "ERROR: $f has Python tuple unpacking in for loop"
               ERRORS=$((ERRORS + 1))
             fi
