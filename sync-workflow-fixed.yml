@@ -1,0 +1,32 @@
+name: Sync Build Workflow
+
+on:
+  push:
+    branches: [ arena/019f868c-neftegorsk ]
+    paths: [ 'android-build-fixed.yml' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    name: Copy android-build-fixed.yml → .github/workflows/android-build.yml
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+          token: ${{ secrets.PAT_WORKFLOW }}
+
+      - name: Copy and push workflow
+        run: |
+          # Copy the fixed workflow file to the actual workflow location
+          cp android-build-fixed.yml .github/workflows/android-build.yml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "actions@github.com"
+          git add .github/workflows/android-build.yml
+          git commit -m "Auto-sync: update android-build.yml from android-build-fixed.yml" || echo "No changes to commit"
+          git push
