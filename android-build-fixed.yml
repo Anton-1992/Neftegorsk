@@ -204,8 +204,8 @@ jobs:
 
           build/min_sdk=21
           build/target_sdk=34
-          build/version_code=18
-          build/version_name="1.0.18"
+          build/version_code=19
+          build/version_name="1.0.19"
           build/package="com.neftegorsk.game"
           build/keystore/debug="user://debug.keystore"
           build/permissions=["android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE", "android.permission.WAKE_LOCK"]
@@ -296,8 +296,8 @@ jobs:
 
           build/min_sdk=21
           build/target_sdk=34
-          build/version_code=18
-          build/version_name="1.0.18"
+          build/version_code=19
+          build/version_name="1.0.19"
           build/package="com.neftegorsk.game"
           build/keystore/debug="user://debug.keystore"
           build/permissions=["android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE", "android.permission.WAKE_LOCK"]
