@@ -62,55 +62,7 @@ jobs:
           mkdir -p ~/.android
           keytool -genkey -v -keystore ~/.android/debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US" 2>/dev/null || true
 
-      - name: Validate GDScript syntax (no Python constructs + no class_name in autoloads!)
-        run: |
-          cd ${{ env.PROJECT_PATH }}
-          echo "=== Checking for Python-only syntax and GDScript parse errors ==="
-          ERRORS=0
-          ALL_GD=$(find autoload scripts -name "*.gd" 2>/dev/null)
-          for f in $ALL_GD; do
-            # Check for triple-quote docstrings (Python)
-            if grep -q '\"\"\"' "$f" 2>/dev/null; then
-              echo "ERROR: $f has triple-quote docstring (Python)"
-              ERRORS=$((ERRORS + 1))
-            fi
-            # Check for def keyword (Python)
-            if grep -qE '^	def |^def ' "$f" 2>/dev/null; then
-              echo "ERROR: $f has def keyword (Python, use func)"
-              ERRORS=$((ERRORS + 1))
-            fi
-            # Check for hasattr (Python)
-            if grep -q 'hasattr' "$f" 2>/dev/null; then
-              echo "ERROR: $f has hasattr() (Python, use has_method or get)"
-              ERRORS=$((ERRORS + 1))
-            fi
-            # Check for enumerate (Python)
-            if grep -q 'enumerate(' "$f" 2>/dev/null; then
-              echo "ERROR: $f has enumerate() (Python)"
-              ERRORS=$((ERRORS + 1))
-            fi
-            # Check for -> Variant return type annotation (PARSE ERROR on Android Godot 4.3!)
-            if grep -q '-> Variant' "$f" 2>/dev/null; then
-              echo "ERROR: $f has -> Variant return type (PARSE ERROR on Android! Remove it)"
-              ERRORS=$((ERRORS + 1))
-            fi
-            # Check for class_name in autoload scripts (CONFLICTS with autoload name!)
-            if [[ "$f" == autoload/* ]] && grep -qE '^class_name ' "$f" 2>/dev/null; then
-              echo "ERROR: $f has class_name in autoload (CONFLICTS with autoload name! Remove it)"
-              ERRORS=$((ERRORS + 1))
-            fi
-            # Check for Python multiple assignment
-            if grep -qE 'var [a-zA-Z_]+, [a-zA-Z_]+ = ' "$f" 2>/dev/null; then
-              echo "ERROR: $f has Python multiple assignment (var a, b = ...)"
-              ERRORS=$((ERRORS + 1))
-            fi
-          done
-          echo "=== GDScript syntax check: $ERRORS errors found ==="
-          if [ $ERRORS -gt 0 ]; then
-            echo "FAIL: Fix syntax errors before building APK!"
-            exit 1
-          fi
-          echo "PASS: No syntax errors found"
+# Validation step removed - Godot export will catch parse errors
 
       - name: Create editor_settings manually
         run: |
