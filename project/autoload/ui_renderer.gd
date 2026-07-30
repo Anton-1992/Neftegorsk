@@ -1,4 +1,4 @@
-## UIRenderer.gd — v34: ColorRect map + Back button fix
+## UIRenderer.gd — v35: ColorRect map + Back button fix
 extends Node
 
 var boot = null
@@ -32,11 +32,15 @@ var sound_on = true
 var SW = 1920
 var SH = 1080
 
-# Isometric map references
-
+# Map view reference
+var map_view = null
+var TW = 64
+var TH = 32
+var BLOCK_H = 20
 var cars = []
 
-# Isometric tile size
+# Back button diagnostic
+var back_pressed = false
 
 var lbl_cash = null
 var lbl_fuel = null
@@ -76,6 +80,7 @@ func _update_screen_size():
 func _clear():
 	if boot == null:
 		return
+	map_view = null
 	var ch = boot.get_children()
 	for c in ch:
 		boot.remove_child(c)
@@ -152,6 +157,11 @@ func _process(delta):
 	_update_cars(delta)
 
 # ==================== CAR SYSTEM ====================
+
+func _iso_to_screen(gx, gy, cx, cy):
+	var sx = cx + (gx - gy) * TW / 2
+	var sy = cy + (gx + gy) * TH / 2
+	return Vector2(sx, sy)
 
 func _find_road_path(start_x, start_y, end_x, end_y):
 	var sz = my_grid
@@ -253,18 +263,18 @@ func _spawn_car():
 	})
 
 func _update_cars(delta):
-	if boot == null:
+	if map_view == null:
 		return
+	map_view.car_data = []
+	var map_w = my_grid * TW
+	var mcx = map_w / 2
+	var mcy = TH
 	for car in cars:
 		car.t += delta * car.speed
 		if car.t >= 1.0:
 			car.t = 0.0
 			car.step += 1
 		if car.step >= car.path.size() - 1:
-			if car.node != null:
-				boot.remove_child(car.node)
-				car.node.free()
-				car.node = null
 			car.step = -1
 			continue
 		if car.step < 0:
@@ -274,32 +284,14 @@ func _update_cars(delta):
 		var t = car.t
 		var gx = from.x + (to.x - from.x) * t
 		var gy = from.y + (to.y - from.y) * t
-		# Car position on flat grid
-		var sz = my_grid
-		var ts = min((SW - 400) / sz, (SH - 20) / sz)
-		ts = max(ts, 20)
-		var map_x = 10
-		var map_y = (SH - sz * ts) / 2
-		var cx = map_x + gx * ts + ts / 2
-		var cy = map_y + gy * ts + ts / 2
-		if car.node == null:
-			var cr = ColorRect.new()
-			cr.color = car.color
-			cr.size = Vector2(8, 8)
-			cr.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			cr.position = Vector2(cx - 4, cy - 4)
-			boot.add_child(cr)
-			car.node = cr
-		else:
-			car.node.position = Vector2(cx - 4, cy - 4)
+		var spos = _iso_to_screen(gx, gy, mcx, mcy)
+		map_view.car_data.append({"x": spos.x, "y": spos.y, "color": car.color})
 	var alive = []
 	for car in cars:
 		if car.step >= 0:
 			alive.append(car)
-		elif car.node != null:
-			boot.remove_child(car.node)
-			car.node.free()
 	cars = alive
+	map_view.request_redraw()
 
 # ==================== SIMULATION ====================
 
@@ -408,7 +400,7 @@ func show_main_menu(boot_node):
 	boot.add_child(_btn("Settings", btn_x1, btn_y, btn_w, btn_h, Color(0.15, 0.15, 0.25), 28, _show_settings))
 	boot.add_child(_btn("Achievements", btn_x2, btn_y, btn_w, btn_h, Color(0.2, 0.15, 0.08), 28, _show_achievements))
 	# Version
-	boot.add_child(_lbl("v34", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
+	boot.add_child(_lbl("v35", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
 
 # ==================== SETTINGS ====================
 
@@ -743,141 +735,189 @@ func show_gameplay(boot_node):
 	var g = _get_gs()
 	var sz = my_grid
 
-	# Map area: left side, controls: right side
-	var panel_w = 380
-	var map_area_w = SW - panel_w - 20
-	var map_area_h = SH - 20
-
-	# Tile size for flat grid
-	var ts = min(map_area_w / sz, map_area_h / sz)
-	ts = max(ts, 20)
-	var map_w = sz * ts
-	var map_h = sz * ts
-	var map_x = 10
-	var map_y = (SH - map_h) / 2
+	# Isometric tile size — map fills most of screen
+	var top_bar_h = 80
+	var bot_bar_h = 140
+	var map_area_w = SW - 20
+	var map_area_h = SH - top_bar_h - bot_bar_h - 20
+	TW = int(map_area_w / sz)
+	TH = TW / 2
+	var total_map_h = sz * TH + BLOCK_H + 20
+	if total_map_h > map_area_h:
+		TH = int((map_area_h - BLOCK_H - 20) / sz)
+		TW = TH * 2
+	TW = max(TW, 30)
+	TH = max(TH, 15)
 
 	boot.add_child(_bg(Color(0.02, 0.03, 0.06)))
 
-	# Map border
-	var brd = ColorRect.new()
-	brd.color = Color(0.1, 0.1, 0.15)
-	brd.position = Vector2(map_x - 4, map_y - 4)
-	brd.size = Vector2(map_w + 8, map_h + 8)
-	brd.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	boot.add_child(brd)
+	# ---- ISOMETRIC MAP (fills screen) ----
+	var map_w = sz * TW
+	var map_h = sz * TH + BLOCK_H + 20
+	var map_x = (SW - map_w) / 2
+	var map_y = top_bar_h + (SH - top_bar_h - bot_bar_h - map_h) / 2
 
-	# District color
+	# Load map_view scene
+	var mv_scene = load("res://scenes/map_view.tscn")
+	var mv = mv_scene.instantiate()
+	mv.position = Vector2(map_x, map_y)
+	mv.size = Vector2(map_w, map_h)
+	mv.TW = TW
+	mv.TH = TH
+	if font != null:
+		mv.font = font
+	boot.add_child(mv)
+	map_view = mv
+
+	var mcx = map_w / 2
+	var mcy = TH
+
 	var dc = Color(0.2, 0.2, 0.3)
 	if g != null:
 		dc = g.district_colors.get(current_district_id, dc)
 
-	# Draw map tiles as ColorRect + Label
-	for iy in range(sz):
-		for ix in range(sz):
+	for depth in range(0, sz * 2):
+		for gx in range(0, sz):
+			var gy = depth - gx
+			if gy < 0 or gy >= sz:
+				continue
 			var tt = 0
-			if my_map.size() > iy and my_map[iy].size() > ix:
-				tt = my_map[iy][ix]
-			var c = Color(dc.r * 0.4, dc.g * 0.4, dc.b * 0.4)
-			var txt = ""
-			var tc = Color(0.8, 0.8, 0.8)
+			if my_map.size() > gy and my_map[gy].size() > gx:
+				tt = my_map[gy][gx]
+			var spos = _iso_to_screen(gx, gy, mcx, mcy)
+			var top_color = Color(dc.r * 0.4, dc.g * 0.4, dc.b * 0.4)
+			var left_color = Color(dc.r * 0.3, dc.g * 0.3, dc.b * 0.3)
+			var right_color = Color(dc.r * 0.25, dc.g * 0.25, dc.b * 0.25)
+			var bh = 0
+			var label_text = ""
+			var label_color = Color(0.8, 0.8, 0.8)
 			if tt == 0:
-				c = Color(dc.r * 0.35, dc.g * 0.35, dc.b * 0.35)
+				top_color = Color(dc.r * 0.35, dc.g * 0.35, dc.b * 0.35)
+				left_color = Color(dc.r * 0.25, dc.g * 0.25, dc.b * 0.25)
+				right_color = Color(dc.r * 0.2, dc.g * 0.2, dc.b * 0.2)
+				bh = 2
 			elif tt == 1:
-				c = Color(0.35, 0.35, 0.4)
+				top_color = Color(0.35, 0.35, 0.4)
+				left_color = Color(0.25, 0.25, 0.3)
+				right_color = Color(0.2, 0.2, 0.25)
 			elif tt == 2:
-				c = Color(dc.r + 0.2, dc.g + 0.12, dc.b + 0.06)
-				txt = "B"
-				tc = Color(0.6, 0.5, 0.4)
+				top_color = Color(dc.r + 0.2, dc.g + 0.12, dc.b + 0.06)
+				left_color = Color(dc.r + 0.1, dc.g + 0.06, dc.b + 0.03)
+				right_color = Color(dc.r + 0.05, dc.g + 0.03, dc.b + 0.01)
+				bh = BLOCK_H
+				label_text = "B"
+				label_color = Color(0.6, 0.5, 0.4)
 			elif tt == 5:
-				c = Color(0.15, 0.65, 0.2)
-				txt = "P"
-				tc = Color(1, 1, 1)
+				top_color = Color(0.15, 0.65, 0.2)
+				left_color = Color(0.1, 0.45, 0.15)
+				right_color = Color(0.08, 0.35, 0.12)
+				bh = BLOCK_H / 2
+				label_text = "P"
+				label_color = Color(1, 1, 1)
 			elif tt == 6:
-				c = Color(0.75, 0.15, 0.15)
-				txt = "E"
-				tc = Color(1, 1, 1)
-			var cr = ColorRect.new()
-			cr.color = c
-			cr.position = Vector2(map_x + ix * ts, map_y + iy * ts)
-			cr.size = Vector2(ts - 2, ts - 2)
-			cr.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			boot.add_child(cr)
-			if txt != "":
-				var tl = _lbl(txt, map_x + ix * ts, map_y + iy * ts, ts - 2, ts - 2, max(ts / 3, 12), tc)
-				boot.add_child(tl)
+				top_color = Color(0.75, 0.15, 0.15)
+				left_color = Color(0.5, 0.1, 0.1)
+				right_color = Color(0.4, 0.08, 0.08)
+				bh = BLOCK_H / 2
+				label_text = "E"
+				label_color = Color(1, 1, 1)
+			map_view.tiles.append({
+				"x": spos.x, "y": spos.y,
+				"tc": top_color, "lc": left_color, "rc": right_color,
+				"bh": bh
+			})
+			if label_text != "":
+				map_view.labels.append({
+					"x": spos.x, "y": spos.y - bh / 2,
+				"text": label_text, "fs": max(TW / 4, 10),
+				"color": label_color
+			})
+	map_view.request_redraw()
 
-	# ---- RIGHT PANEL ----
-	var px = SW - panel_w
-	var py = 10
-	var pw = panel_w - 20
+	# ---- TOP BAR (data + Back) ----
+	var tb = ColorRect.new()
+	tb.color = Color(0.06, 0.07, 0.12, 0.9)
+	tb.position = Vector2(0, 0)
+	tb.size = Vector2(SW, top_bar_h)
+	tb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	boot.add_child(tb)
 
-	# BACK BUTTON — very prominent, added FIRST before other elements
-	boot.add_child(_btn("<< BACK", px, py, pw, 60, Color(0.4, 0.12, 0.12), 28, _on_back))
-	py += 68
+	# BACK BUTTON — top-left, VERY prominent
+	boot.add_child(_btn("BACK", 10, 10, 180, 60, Color(0.5, 0.1, 0.1), 28, _on_back))
+
 	var d_name = ""
 	if g != null:
 		d_name = g.district_names.get(current_district_id, "")
-	boot.add_child(_lbl(d_name + " Lv." + str(current_level_num), px, py, pw, 30, 20, Color(1, 0.9, 0.3)))
-	py += 34
-	lbl_cash = _lbl("Cash: " + str(my_cash) + " R", px, py, pw, 30, 20, Color(0.7, 0.9, 0.7), false)
+	boot.add_child(_lbl(d_name + " Lv." + str(current_level_num), 200, 10, 400, 30, 22, Color(1, 0.9, 0.3)))
+	lbl_cash = _lbl("Cash: " + str(my_cash) + " R", 200, 42, 300, 26, 18, Color(0.7, 0.9, 0.7), false)
 	boot.add_child(lbl_cash)
-	py += 34
-
-	boot.add_child(_lbl("-- Fuel Station --", px, py, pw, 24, 16, Color(0.5, 0.5, 0.6)))
-	py += 26
-	lbl_fuel = _lbl("Fuel: " + str(my_fuel) + "/" + str(my_capacity) + " L", px, py, pw, 24, 16, Color(0.6, 0.8, 1.0), false)
+	lbl_fuel = _lbl("Fuel: " + str(my_fuel) + "/" + str(my_capacity) + " L", 500, 42, 300, 26, 18, Color(0.6, 0.8, 1.0), false)
 	boot.add_child(lbl_fuel)
-	py += 26
-	lbl_price = _lbl("Price: " + str(int(my_price)) + " R/L", px, py, pw, 24, 16, Color(1, 0.9, 0.3), false)
+	lbl_price = _lbl("Price: " + str(int(my_price)) + " R/L", 800, 42, 200, 26, 18, Color(1, 0.9, 0.3), false)
 	boot.add_child(lbl_price)
-	py += 30
-	var bw = pw / 2 - 4
-	boot.add_child(_btn("Price -5", px, py, bw, 40, Color(0.2, 0.15, 0.1), 16, _on_price_down))
-	boot.add_child(_btn("Price +5", px + bw + 8, py, bw, 40, Color(0.2, 0.15, 0.1), 16, _on_price_up))
-	py += 46
-	boot.add_child(_btn("Buy Fuel 1000L", px, py, pw, 40, Color(0.1, 0.2, 0.15), 16, _on_buy))
-	py += 46
-	boot.add_child(_btn("Buy MAX Fuel", px, py, pw, 40, Color(0.1, 0.15, 0.2), 16, _on_buy_max))
-	py += 48
-
-	lbl_time = _lbl("Time: 8:00", px, py, pw / 3, 24, 16, Color(0.5, 0.5, 0.6), false)
+	lbl_time = _lbl("Time: 8:00", 1020, 10, 200, 26, 18, Color(0.5, 0.5, 0.6), false)
 	boot.add_child(lbl_time)
-	lbl_revenue = _lbl("Rev: 0R", px + pw / 3, py, pw / 3, 24, 16, Color(0.7, 0.9, 0.7), false)
+	lbl_revenue = _lbl("Rev: 0R", 1020, 42, 200, 26, 18, Color(0.7, 0.9, 0.7), false)
 	boot.add_child(lbl_revenue)
-	lbl_fuel_sold = _lbl("Sold: 0L", px + pw * 2 / 3, py, pw / 3, 24, 16, Color(0.6, 0.8, 1.0), false)
+	lbl_fuel_sold = _lbl("Sold: 0L", 1240, 42, 200, 26, 18, Color(0.6, 0.8, 1.0), false)
 	boot.add_child(lbl_fuel_sold)
-	py += 28
-	lbl_msg = _lbl("", px, py, pw, 24, 14, Color(0.6, 0.6, 0.6), false)
-	boot.add_child(lbl_msg)
-	py += 24
-	lbl_status = _lbl("", px, py, pw, 24, 14, Color(0.8, 0.7, 0.3), false)
+	lbl_status = _lbl("", 1240, 10, 300, 26, 16, Color(0.8, 0.7, 0.3), false)
 	boot.add_child(lbl_status)
-	py += 30
+	lbl_msg = _lbl("", 600, 10, 400, 26, 16, Color(0.6, 0.6, 0.6), false)
+	boot.add_child(lbl_msg)
 
-	boot.add_child(_lbl("-- Opponents --", px, py, pw, 24, 16, Color(0.5, 0.5, 0.6)))
-	py += 26
-	lbl_opp = _lbl("", px, py, pw, 24, 14, Color(0.9, 0.6, 0.3), false)
+	# ---- BOTTOM BAR (action buttons) ----
+	var bb = ColorRect.new()
+	bb.color = Color(0.06, 0.07, 0.12, 0.9)
+	bb.position = Vector2(0, SH - bot_bar_h)
+	bb.size = Vector2(SW, bot_bar_h)
+	bb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	boot.add_child(bb)
+
+	var by = SH - bot_bar_h + 10
+	var bw = 220
+	var bh2 = 50
+	var gap = 15
+	var bx = 20
+
+	boot.add_child(_btn("Price -5", bx, by, bw, bh2, Color(0.2, 0.15, 0.1), 20, _on_price_down))
+	bx += bw + gap
+	boot.add_child(_btn("Price +5", bx, by, bw, bh2, Color(0.2, 0.15, 0.1), 20, _on_price_up))
+	bx += bw + gap
+	boot.add_child(_btn("Buy Fuel 1000L", bx, by, bw, bh2, Color(0.1, 0.2, 0.15), 20, _on_buy))
+	bx += bw + gap
+	boot.add_child(_btn("Buy MAX", bx, by, bw, bh2, Color(0.1, 0.15, 0.2), 20, _on_buy_max))
+	bx += bw + gap
+	boot.add_child(_btn("Upgrade Shop", bx, by, bw, bh2, Color(0.12, 0.12, 0.2), 20, _show_upgrade_shop))
+	bx += bw + gap
+	boot.add_child(_btn("Save", bx, by, 150, bh2, Color(0.12, 0.18, 0.12), 18, _on_save))
+
+	by += bh2 + 10
+	bx = 20
+	# Opponents
+	lbl_opp = _lbl("", bx, by, SW, 22, 16, Color(0.9, 0.6, 0.3), false)
 	boot.add_child(lbl_opp)
-	py += 28
+	by += 24
 	for opp in my_opponents:
 		if opp.stations_count > 0:
 			var bp = 60000 + current_level_num * 15000
 			bp = int(bp * opp.loyalty)
 			var ot = opp.name + " " + str(int(opp.price)) + "R/L BUYOUT:" + str(bp) + "R"
-			boot.add_child(_btn(ot, px, py, pw, 44, Color(0.2, 0.08, 0.08), 16, _on_buyout, opp.id))
-			py += 50
-	py += 10
-	boot.add_child(_btn("Upgrade Shop", px, py, pw, 44, Color(0.12, 0.12, 0.2), 18, _show_upgrade_shop))
-	py += 50
-	boot.add_child(_lbl("P=You  E=Enemy  B=Building  Gray=Road", px, py, pw, 20, 12, Color(0.4, 0.4, 0.4), false))
+			boot.add_child(_btn(ot, bx, by, 500, 40, Color(0.2, 0.08, 0.08), 16, _on_buyout, opp.id))
+			bx += 520
+
+	# Legend
+	boot.add_child(_lbl("P=You  E=Enemy  B=Building  Gray=Road  Warm cars=To you  Cool cars=To enemy", 0, SH - 20, SW, 20, 12, Color(0.3, 0.3, 0.4)))
 
 func _on_back():
+	back_pressed = true
 	my_in_game = false
 	cars = []
+	map_view = null
 	var s = _get_sim()
 	if s != null:
 		s.in_game = false
-	_show_level_select()
+	show_main_menu(boot)
 
 func _on_price_up():
 	my_price = min(my_price + 5.0, 85.0)
