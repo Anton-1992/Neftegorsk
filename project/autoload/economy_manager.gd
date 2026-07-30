@@ -369,7 +369,7 @@ func get_competitor_data(comp_id: int) -> Dictionary:
 	}
 
 # Effect application from upgrades
-func apply_upgrade_effect(effect_key: String, value: Variant) -> void:
+func apply_upgrade_effect(effect_key: String, value) -> void:
 	match effect_key:
 		"purchase_price_multiplier":
 			# Modify wholesale price globally

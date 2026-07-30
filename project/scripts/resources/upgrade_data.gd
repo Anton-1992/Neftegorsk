@@ -82,7 +82,7 @@ func apply_effects(target: Object) -> void:
 	for key, value in effects:
 		if target.has_method("apply_upgrade_effect"):
 			target.apply_upgrade_effect(key, value)
-		elif target.has_property(key):
+		elif target.get(key) != null:
 			var current = target.get(key)
 			if current is float or current is int:
 				target.set(key, current * value)

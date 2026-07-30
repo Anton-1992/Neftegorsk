@@ -61,4 +61,7 @@ func is_bonus_condition_met(condition: Dictionary, game_stats: Dictionary) -> bo
 		_: return false
 
 static func create_level_id(district_id: StringName, level_num: int) -> StringName:
-	return StringName("%s_%02d".format([district_id, level_num]))
+	var num_str = str(level_num)
+	if level_num < 10:
+		num_str = "0" + num_str
+	return StringName(str(district_id) + "_" + num_str)
