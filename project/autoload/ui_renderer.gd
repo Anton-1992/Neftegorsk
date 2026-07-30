@@ -415,28 +415,16 @@ func show_main_menu(boot_node):
 	_update_screen_size()
 	_clear()
 	current_screen = "title"
-	# Dark background with slight gradient
 	boot.add_child(_bg(Color(0.04, 0.05, 0.09)))
-	# Decorative top bar
-	var top_bar = ColorRect.new()
-	top_bar.color = Color(0.08, 0.10, 0.18)
-	top_bar.position = Vector2(0, 0)
-	top_bar.size = Vector2(SW, 60)
-	top_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	boot.add_child(top_bar)
-	# Settings button — top-left gear icon (text "[...]" since emoji broken)
-	boot.add_child(_btn("[...]", 15, 8, 130, 44, Color(0.12, 0.14, 0.22), 22, _show_settings))
-	# Achievements button — top-right
-	boot.add_child(_btn("[*]", SW - 145, 8, 130, 44, Color(0.18, 0.14, 0.08), 22, _show_achievements))
 	# Title
-	boot.add_child(_lbl("NEFTEGORSK", 0, 120, SW, 100, 72, Color(1, 0.85, 0.2)))
-	boot.add_child(_lbl("Fuel Empire", 0, 210, SW, 40, 28, Color(0.6, 0.6, 0.7)))
+	boot.add_child(_lbl("NEFTEGORSK", 0, 60, SW, 100, 72, Color(1, 0.85, 0.2)))
+	boot.add_child(_lbl("Fuel Empire", 0, 150, SW, 40, 28, Color(0.6, 0.6, 0.7)))
 	# Big PLAY button — center of screen
-	var play_w = 400
-	var play_h = 100
+	var play_w = 500
+	var play_h = 120
 	var play_x = (SW - play_w) / 2
-	var play_y = SH / 2 - 30
-	boot.add_child(_btn("PLAY", play_x, play_y, play_w, play_h, Color(0.12, 0.45, 0.18), 48, _show_district_select))
+	var play_y = 260
+	boot.add_child(_btn("PLAY", play_x, play_y, play_w, play_h, Color(0.12, 0.45, 0.18), 52, _show_district_select))
 	# Stats below play button
 	var g = _get_gs()
 	var cash_str = "0"
@@ -444,9 +432,18 @@ func show_main_menu(boot_node):
 	if g != null:
 		cash_str = str(g.cash)
 		stars_str = str(g.total_stars)
-	boot.add_child(_lbl("Money: " + cash_str + " R  |  Stars: " + stars_str, 0, play_y + play_h + 30, SW, 30, 20, Color(0.5, 0.5, 0.6)))
+	boot.add_child(_lbl("Money: " + cash_str + " R  |  Stars: " + stars_str, 0, play_y + play_h + 20, SW, 30, 20, Color(0.5, 0.5, 0.6)))
+	# Settings + Achievements — big buttons below PLAY
+	var btn_w = 350
+	var btn_h = 80
+	var btn_gap = 40
+	var btn_y = play_y + play_h + 70
+	var btn_x1 = SW / 2 - btn_w - btn_gap / 2
+	var btn_x2 = SW / 2 + btn_gap / 2
+	boot.add_child(_btn("Settings", btn_x1, btn_y, btn_w, btn_h, Color(0.15, 0.15, 0.25), 28, _show_settings))
+	boot.add_child(_btn("Achievements", btn_x2, btn_y, btn_w, btn_h, Color(0.2, 0.15, 0.08), 28, _show_achievements))
 	# Version
-	boot.add_child(_lbl("v30", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
+	boot.add_child(_lbl("v31", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
 
 # ==================== SETTINGS ====================
 
@@ -456,9 +453,11 @@ func _show_settings():
 	current_screen = "settings"
 	boot.add_child(_bg(Color(0.04, 0.05, 0.09)))
 	var cx = (SW - 600) / 2
-	var cy = 100
-	boot.add_child(_btn("<< Back", cx, 20, 180, 45, Color(0.2, 0.25, 0.3), 22, show_main_menu.bind(boot)))
-	boot.add_child(_lbl("Settings", cx + 200, 20, 400, 50, 38, Color(1, 0.9, 0.3)))
+	var cy = 30
+	boot.add_child(_btn("<< Back", cx, cy, 600, 60, Color(0.2, 0.25, 0.3), 28, show_main_menu.bind(boot)))
+	cy += 75
+	boot.add_child(_lbl("Settings", cx, cy, 600, 50, 38, Color(1, 0.9, 0.3)))
+	cy += 65
 	# Music
 	var music_text = "Music: ON"
 	var music_color = Color(0.12, 0.3, 0.15)
@@ -516,8 +515,8 @@ func _show_achievements():
 	current_screen = "achievements"
 	boot.add_child(_bg(Color(0.04, 0.05, 0.09)))
 	var cx = (SW - 700) / 2
-	boot.add_child(_btn("<< Back", cx, 20, 180, 45, Color(0.2, 0.25, 0.3), 22, show_main_menu.bind(boot)))
-	boot.add_child(_lbl("Achievements", cx + 200, 20, 500, 50, 38, Color(1, 0.9, 0.3)))
+	boot.add_child(_btn("<< Back", cx, 30, 700, 60, Color(0.2, 0.25, 0.3), 28, show_main_menu.bind(boot)))
+	boot.add_child(_lbl("Achievements", cx + 200, 95, 500, 50, 38, Color(1, 0.9, 0.3)))
 	var g = _get_gs()
 	if g == null:
 		boot.add_child(_lbl("GameState not available!", cx, 100, 700, 40, 24, Color(1, 0.3, 0.3)))
@@ -569,7 +568,7 @@ func _show_district_select():
 	_update_screen_size()
 	current_screen = "district_select"
 	boot.add_child(_bg())
-	boot.add_child(_btn("<< Back", 20, 20, 180, 45, Color(0.2, 0.25, 0.3), 22, show_main_menu.bind(boot)))
+	boot.add_child(_btn("<< Back", 20, 20, 250, 55, Color(0.2, 0.25, 0.3), 26, show_main_menu.bind(boot)))
 	boot.add_child(_lbl("Select District", 220, 20, SW - 440, 50, 38, Color(1, 0.9, 0.3)))
 	var g = _get_gs()
 	var cash_str = "0"
@@ -639,7 +638,7 @@ func _show_level_select():
 		dc = g.district_colors.get(current_district_id, dc)
 	var content_w = min(SW - 40, 1000)
 	var cx = (SW - content_w) / 2
-	boot.add_child(_btn("<< Back", cx, 20, 180, 45, Color(0.2, 0.25, 0.3), 22, _show_district_select))
+	boot.add_child(_btn("<< Back", cx, 20, 250, 55, Color(0.2, 0.25, 0.3), 26, _show_district_select))
 	boot.add_child(_lbl(d_name, cx + 200, 20, content_w - 200, 50, 38, Color(1, 0.9, 0.3)))
 	var y = 120
 	for i in range(1, lc + 1):
@@ -890,7 +889,7 @@ func show_gameplay(boot_node):
 	var py = 10
 	var pw = panel_w - 20
 
-	boot.add_child(_btn("<< Back", px, py, 120, 36, Color(0.25, 0.15, 0.15), 18, _on_back))
+	boot.add_child(_btn("<< Back", px, py, 160, 44, Color(0.25, 0.15, 0.15), 22, _on_back))
 	var d_name = ""
 	if g != null:
 		d_name = g.district_names.get(current_district_id, "")
@@ -1055,7 +1054,7 @@ func _show_upgrade_shop():
 	boot.add_child(_bg(Color(0.05, 0.05, 0.1)))
 	var content_w = min(SW - 40, 1200)
 	var cx = (SW - content_w) / 2
-	boot.add_child(_btn("<< Back", cx, 20, 180, 45, Color(0.2, 0.25, 0.3), 22, _on_shop_back))
+	boot.add_child(_btn("<< Back", cx, 20, 250, 55, Color(0.2, 0.25, 0.3), 26, _on_shop_back))
 	boot.add_child(_lbl("Upgrade Shop", cx + 200, 20, content_w - 200, 50, 38, Color(1, 0.9, 0.3)))
 	var g = _get_gs()
 	if g == null:
