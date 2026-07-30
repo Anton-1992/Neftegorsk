@@ -1,4 +1,4 @@
-## UIRenderer.gd — v30: title screen + settings + achievements
+## UIRenderer.gd — v34: ColorRect map + Back button fix
 extends Node
 
 var boot = null
@@ -33,14 +33,10 @@ var SW = 1920
 var SH = 1080
 
 # Isometric map references
-var map_node = null
 
 var cars = []
 
 # Isometric tile size
-var TW = 64
-var TH = 32
-var BLOCK_H = 20
 
 var lbl_cash = null
 var lbl_fuel = null
@@ -84,7 +80,6 @@ func _clear():
 	for c in ch:
 		boot.remove_child(c)
 		c.free()
-	map_node = null
 
 	cars = []
 
@@ -137,61 +132,6 @@ func _bg(color = Color(0.06, 0.08, 0.12)):
 	return bg
 
 # ==================== ISOMETRIC HELPERS ====================
-
-func _iso_to_screen(gx, gy, cx, cy):
-	var sx = cx + (gx - gy) * TW / 2
-	var sy = cy + (gx + gy) * TH / 2
-	return Vector2(sx, sy)
-
-func _make_diamond(cx, cy, w, h, color):
-	var p = Polygon2D.new()
-	var verts = PackedVector2Array()
-	verts.append(Vector2(0, -h / 2))
-	verts.append(Vector2(w / 2, 0))
-	verts.append(Vector2(0, h / 2))
-	verts.append(Vector2(-w / 2, 0))
-	p.polygon = verts
-	p.color = color
-	p.position = Vector2(cx, cy)
-	return p
-
-func _make_left_face(cx, cy, w, h, bh, color):
-	var p = Polygon2D.new()
-	var verts = PackedVector2Array()
-	verts.append(Vector2(-w / 2, 0))
-	verts.append(Vector2(0, h / 2))
-	verts.append(Vector2(0, h / 2 + bh))
-	verts.append(Vector2(-w / 2, bh))
-	p.polygon = verts
-	p.color = color
-	p.position = Vector2(cx, cy)
-	return p
-
-func _make_right_face(cx, cy, w, h, bh, color):
-	var p = Polygon2D.new()
-	var verts = PackedVector2Array()
-	verts.append(Vector2(w / 2, 0))
-	verts.append(Vector2(0, h / 2))
-	verts.append(Vector2(0, h / 2 + bh))
-	verts.append(Vector2(w / 2, bh))
-	p.polygon = verts
-	p.color = color
-	p.position = Vector2(cx, cy)
-	return p
-
-func _make_label(cx, cy, text, fs, color):
-	var l = Label.new()
-	l.text = text
-	l.position = Vector2(cx - 20, cy - fs / 2)
-	l.size = Vector2(40, fs + 4)
-	l.add_theme_font_size_override("font_size", fs)
-	l.add_theme_color_override("font_color", color)
-	l.horizontal_alignment = 1
-	l.vertical_alignment = 1
-	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if font != null:
-		l.add_theme_font_override("font", font)
-	return l
 
 # ==================== PROCESS ====================
 
@@ -313,19 +253,18 @@ func _spawn_car():
 	})
 
 func _update_cars(delta):
-	if map_node == null:
+	if boot == null:
 		return
-	var map_w = my_grid * TW
-	var mcx = map_w / 2
-	var mcy = TH
-	# Clear car drawing data
-	map_node.car_data = []
 	for car in cars:
 		car.t += delta * car.speed
 		if car.t >= 1.0:
 			car.t = 0.0
 			car.step += 1
 		if car.step >= car.path.size() - 1:
+			if car.node != null:
+				boot.remove_child(car.node)
+				car.node.free()
+				car.node = null
 			car.step = -1
 			continue
 		if car.step < 0:
@@ -335,14 +274,32 @@ func _update_cars(delta):
 		var t = car.t
 		var gx = from.x + (to.x - from.x) * t
 		var gy = from.y + (to.y - from.y) * t
-		var spos = _iso_to_screen(gx, gy, mcx, mcy)
-		map_node.car_data.append({"x": spos.x, "y": spos.y, "color": car.color})
+		# Car position on flat grid
+		var sz = my_grid
+		var ts = min((SW - 400) / sz, (SH - 20) / sz)
+		ts = max(ts, 20)
+		var map_x = 10
+		var map_y = (SH - sz * ts) / 2
+		var cx = map_x + gx * ts + ts / 2
+		var cy = map_y + gy * ts + ts / 2
+		if car.node == null:
+			var cr = ColorRect.new()
+			cr.color = car.color
+			cr.size = Vector2(8, 8)
+			cr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			cr.position = Vector2(cx - 4, cy - 4)
+			boot.add_child(cr)
+			car.node = cr
+		else:
+			car.node.position = Vector2(cx - 4, cy - 4)
 	var alive = []
 	for car in cars:
 		if car.step >= 0:
 			alive.append(car)
+		elif car.node != null:
+			boot.remove_child(car.node)
+			car.node.free()
 	cars = alive
-	map_node.request_redraw()
 
 # ==================== SIMULATION ====================
 
@@ -451,7 +408,7 @@ func show_main_menu(boot_node):
 	boot.add_child(_btn("Settings", btn_x1, btn_y, btn_w, btn_h, Color(0.15, 0.15, 0.25), 28, _show_settings))
 	boot.add_child(_btn("Achievements", btn_x2, btn_y, btn_w, btn_h, Color(0.2, 0.15, 0.08), 28, _show_achievements))
 	# Version
-	boot.add_child(_lbl("v33", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
+	boot.add_child(_lbl("v34", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
 
 # ==================== SETTINGS ====================
 
@@ -786,26 +743,22 @@ func show_gameplay(boot_node):
 	var g = _get_gs()
 	var sz = my_grid
 
+	# Map area: left side, controls: right side
 	var panel_w = 380
 	var map_area_w = SW - panel_w - 20
 	var map_area_h = SH - 20
 
-	TW = int(map_area_w / sz)
-	TH = TW / 2
-	var total_map_h = sz * TH + BLOCK_H + 20
-	if total_map_h > map_area_h:
-		TH = int((map_area_h - BLOCK_H - 20) / sz)
-		TW = TH * 2
-	TW = max(TW, 20)
-	TH = max(TH, 10)
-
-	boot.add_child(_bg(Color(0.02, 0.03, 0.06)))
-
-	var map_w = sz * TW
-	var map_h = sz * TH + BLOCK_H + 20
+	# Tile size for flat grid
+	var ts = min(map_area_w / sz, map_area_h / sz)
+	ts = max(ts, 20)
+	var map_w = sz * ts
+	var map_h = sz * ts
 	var map_x = 10
 	var map_y = (SH - map_h) / 2
 
+	boot.add_child(_bg(Color(0.02, 0.03, 0.06)))
+
+	# Map border
 	var brd = ColorRect.new()
 	brd.color = Color(0.1, 0.1, 0.15)
 	brd.position = Vector2(map_x - 4, map_y - 4)
@@ -813,107 +766,59 @@ func show_gameplay(boot_node):
 	brd.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	boot.add_child(brd)
 
-	var map_view_script = ResourceLoader.load("res://scripts/map_view.gd")
-	var map_view = Control.new()
-	map_view.set_script(map_view_script)
-	map_view.position = Vector2(map_x, map_y)
-	map_view.size = Vector2(map_w, map_h)
-	map_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	map_view.TW = TW
-	map_view.TH = TH
-	if font != null:
-		map_view.font = font
-	boot.add_child(map_view)
-	map_node = map_view
-
-	var mcx = map_w / 2
-	var mcy = TH
-
+	# District color
 	var dc = Color(0.2, 0.2, 0.3)
 	if g != null:
 		dc = g.district_colors.get(current_district_id, dc)
 
-	for depth in range(0, sz * 2):
-		for gx in range(0, sz):
-			var gy = depth - gx
-			if gy < 0 or gy >= sz:
-				continue
+	# Draw map tiles as ColorRect + Label
+	for iy in range(sz):
+		for ix in range(sz):
 			var tt = 0
-			if my_map.size() > gy and my_map[gy].size() > gx:
-				tt = my_map[gy][gx]
-			var spos = _iso_to_screen(gx, gy, mcx, mcy)
-
-			var top_color = Color(dc.r * 0.4, dc.g * 0.4, dc.b * 0.4)
-			var left_color = Color(dc.r * 0.3, dc.g * 0.3, dc.b * 0.3)
-			var right_color = Color(dc.r * 0.25, dc.g * 0.25, dc.b * 0.25)
-			var bh = 0
-			var label_text = ""
-			var label_color = Color(0.8, 0.8, 0.8)
-
+			if my_map.size() > iy and my_map[iy].size() > ix:
+				tt = my_map[iy][ix]
+			var c = Color(dc.r * 0.4, dc.g * 0.4, dc.b * 0.4)
+			var txt = ""
+			var tc = Color(0.8, 0.8, 0.8)
 			if tt == 0:
-				top_color = Color(dc.r * 0.35, dc.g * 0.35, dc.b * 0.35)
-				left_color = Color(dc.r * 0.25, dc.g * 0.25, dc.b * 0.25)
-				right_color = Color(dc.r * 0.2, dc.g * 0.2, dc.b * 0.2)
-				bh = 2
+				c = Color(dc.r * 0.35, dc.g * 0.35, dc.b * 0.35)
 			elif tt == 1:
-				top_color = Color(0.35, 0.35, 0.4)
-				left_color = Color(0.25, 0.25, 0.3)
-				right_color = Color(0.2, 0.2, 0.25)
-				bh = 0
+				c = Color(0.35, 0.35, 0.4)
 			elif tt == 2:
-				top_color = Color(dc.r + 0.2, dc.g + 0.12, dc.b + 0.06)
-				left_color = Color(dc.r + 0.1, dc.g + 0.06, dc.b + 0.03)
-				right_color = Color(dc.r + 0.05, dc.g + 0.03, dc.b + 0.01)
-				bh = BLOCK_H
-				label_text = "B"
-				label_color = Color(0.6, 0.5, 0.4)
+				c = Color(dc.r + 0.2, dc.g + 0.12, dc.b + 0.06)
+				txt = "B"
+				tc = Color(0.6, 0.5, 0.4)
 			elif tt == 5:
-				top_color = Color(0.15, 0.65, 0.2)
-				left_color = Color(0.1, 0.45, 0.15)
-				right_color = Color(0.08, 0.35, 0.12)
-				bh = BLOCK_H / 2
-				label_text = "P"
-				label_color = Color(1, 1, 1)
+				c = Color(0.15, 0.65, 0.2)
+				txt = "P"
+				tc = Color(1, 1, 1)
 			elif tt == 6:
-				top_color = Color(0.75, 0.15, 0.15)
-				left_color = Color(0.5, 0.1, 0.1)
-				right_color = Color(0.4, 0.08, 0.08)
-				bh = BLOCK_H / 2
-				label_text = "E"
-				label_color = Color(1, 1, 1)
-
-			var tile_data = {
-				"x": spos.x, "y": spos.y,
-				"tc": top_color, "lc": left_color, "rc": right_color,
-				"bh": bh
-			}
-			map_node.tiles.append(tile_data)
-			if label_text != "":
-				map_node.labels.append({
-					"x": spos.x, "y": spos.y - bh / 2,
-				"text": label_text, "fs": max(TW / 4, 10),
-				"color": label_color
-			})
-	map_node.request_redraw()
+				c = Color(0.75, 0.15, 0.15)
+				txt = "E"
+				tc = Color(1, 1, 1)
+			var cr = ColorRect.new()
+			cr.color = c
+			cr.position = Vector2(map_x + ix * ts, map_y + iy * ts)
+			cr.size = Vector2(ts - 2, ts - 2)
+			cr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			boot.add_child(cr)
+			if txt != "":
+				var tl = _lbl(txt, map_x + ix * ts, map_y + iy * ts, ts - 2, ts - 2, max(ts / 3, 12), tc)
+				boot.add_child(tl)
 
 	# ---- RIGHT PANEL ----
 	var px = SW - panel_w
 	var py = 10
 	var pw = panel_w - 20
 
-	# Right panel top bar
-	var top_bar = ColorRect.new()
-	top_bar.color = Color(0.08, 0.08, 0.12)
-	top_bar.position = Vector2(px - 10, 0)
-	top_bar.size = Vector2(pw + 20, 60)
-	top_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	boot.add_child(top_bar)
-	boot.add_child(_btn("<< Back", px, py, 200, 52, Color(0.3, 0.15, 0.15), 24, _on_back))
+	# BACK BUTTON — very prominent, added FIRST before other elements
+	boot.add_child(_btn("<< BACK", px, py, pw, 60, Color(0.4, 0.12, 0.12), 28, _on_back))
+	py += 68
 	var d_name = ""
 	if g != null:
 		d_name = g.district_names.get(current_district_id, "")
-	boot.add_child(_lbl(d_name + " Lv." + str(current_level_num), px + 210, py + 8, pw - 210, 36, 20, Color(1, 0.9, 0.3)))
-	py += 42
+	boot.add_child(_lbl(d_name + " Lv." + str(current_level_num), px, py, pw, 30, 20, Color(1, 0.9, 0.3)))
+	py += 34
 	lbl_cash = _lbl("Cash: " + str(my_cash) + " R", px, py, pw, 30, 20, Color(0.7, 0.9, 0.7), false)
 	boot.add_child(lbl_cash)
 	py += 34
@@ -964,7 +869,7 @@ func show_gameplay(boot_node):
 	py += 10
 	boot.add_child(_btn("Upgrade Shop", px, py, pw, 44, Color(0.12, 0.12, 0.2), 18, _show_upgrade_shop))
 	py += 50
-	boot.add_child(_lbl("P=You E=Enemy B=Building Road=Gray", px, py, pw, 20, 12, Color(0.4, 0.4, 0.4), false))
+	boot.add_child(_lbl("P=You  E=Enemy  B=Building  Gray=Road", px, py, pw, 20, 12, Color(0.4, 0.4, 0.4), false))
 
 func _on_back():
 	my_in_game = false
