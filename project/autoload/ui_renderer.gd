@@ -1,4 +1,4 @@
-## UIRenderer.gd — v27: isometric view + animated cars
+## UIRenderer.gd — v28: landscape mode, isometric + cars
 extends Node
 
 var boot = null
@@ -24,9 +24,9 @@ var my_sold = 0
 var my_in_game = false
 var player_pos = Vector2i(0, 0)
 
-# Screen dimensions
-var SW = 1080
-var SH = 1920
+# Screen dimensions — landscape
+var SW = 1920
+var SH = 1080
 
 # Isometric map references
 var map_node = null
@@ -69,9 +69,9 @@ func _update_screen_size():
 		SW = int(rect.size.x)
 		SH = int(rect.size.y)
 	if SW < 100:
-		SW = 1080
+		SW = 1920
 	if SH < 100:
-		SH = 1920
+		SH = 1080
 
 func _clear():
 	if boot == null:
@@ -135,7 +135,6 @@ func _bg(color = Color(0.06, 0.08, 0.12)):
 # ==================== ISOMETRIC HELPERS ====================
 
 func _iso_to_screen(gx, gy, cx, cy):
-	# Convert grid coords to isometric screen coords
 	var sx = cx + (gx - gy) * TW / 2
 	var sy = cy + (gx + gy) * TH / 2
 	return Vector2(sx, sy)
@@ -286,13 +285,15 @@ func _spawn_car():
 func _update_cars(delta):
 	if map_node == null:
 		return
+	var map_w = my_grid * TW
+	var mcx = map_w / 2
+	var mcy = TH
 	for car in cars:
 		car.t += delta * car.speed
 		if car.t >= 1.0:
 			car.t = 0.0
 			car.step += 1
 		if car.step >= car.path.size() - 1:
-			# Car reached destination
 			if car.node != null:
 				map_node.remove_child(car.node)
 				car.node.free()
@@ -303,18 +304,9 @@ func _update_cars(delta):
 			continue
 		var from = car.path[car.step]
 		var to = car.path[car.step + 1]
-		var fx = from.x
-		var fy = from.y
-		var tx = to.x
-		var ty = to.y
 		var t = car.t
-		var gx = fx + (tx - fx) * t
-		var gy = fy + (ty - fy) * t
-		# Convert to isometric screen position
-		var map_w = my_grid * TW
-		var map_h = my_grid * TH
-		var mcx = map_w / 2
-		var mcy = TH
+		var gx = from.x + (to.x - from.x) * t
+		var gy = from.y + (to.y - from.y) * t
 		var spos = _iso_to_screen(gx, gy, mcx, mcy)
 		if car.node == null:
 			var p = Polygon2D.new()
@@ -330,7 +322,6 @@ func _update_cars(delta):
 			car.node = p
 		else:
 			car.node.position = spos
-	# Remove dead cars
 	var alive = []
 	for car in cars:
 		if car.step >= 0:
@@ -399,7 +390,7 @@ func _refresh_labels():
 			p = "EVENING RUSH!"
 		elif h >= 6 and h <= 22:
 			p = "Daytime"
-		lbl_status.text = p + " | Pumps:" + str(my_pumps) + " | Fuel:" + str(my_fuel) + "L"
+		lbl_status.text = p + " | Pumps:" + str(my_pumps)
 	if lbl_revenue != null:
 		lbl_revenue.text = "Revenue: " + str(my_revenue) + " R"
 	if lbl_fuel_sold != null:
@@ -411,7 +402,7 @@ func _refresh_labels():
 				t += opp.name + " Price:" + str(int(opp.price)) + "R  "
 		lbl_opp.text = t
 
-# ==================== MAIN MENU ====================
+# ==================== MAIN MENU (LANDSCAPE) ====================
 
 func show_main_menu(boot_node):
 	boot = boot_node
@@ -420,21 +411,25 @@ func show_main_menu(boot_node):
 	_clear()
 	current_screen = "main_menu"
 	boot.add_child(_bg())
-	boot.add_child(_lbl("NEFTEGORSK", 0, 30, SW, 80, 56, Color(1, 0.9, 0.3)))
-	boot.add_child(_lbl("v27 Isometric", 0, 100, SW, 30, 18, Color(0.5, 0.5, 0.6)))
+	boot.add_child(_lbl("NEFTEGORSK", 0, 20, SW, 70, 52, Color(1, 0.9, 0.3)))
+	boot.add_child(_lbl("v28 Landscape", 0, 80, SW, 24, 16, Color(0.5, 0.5, 0.6)))
 	var g = _get_gs()
 	var cash_str = "0"
 	var stars_str = "0"
 	if g != null:
 		cash_str = str(g.cash)
 		stars_str = str(g.total_stars)
-	var content_w = min(SW - 40, 1000)
-	var cx = (SW - content_w) / 2
-	boot.add_child(_lbl("Money: " + cash_str + " R", cx, 150, content_w / 2, 40, 22, Color(0.7, 0.9, 0.7), false))
-	boot.add_child(_lbl("Stars: " + stars_str, cx + content_w / 2, 150, content_w / 2, 40, 22, Color(1, 0.9, 0.3), false))
-	boot.add_child(_lbl("Select District:", cx, 210, content_w, 40, 24, Color(0.7, 0.7, 0.8), false))
-	var y = 260
+	# Two columns layout for districts
+	var col_w = SW / 2 - 40
+	var left_x = 20
+	var right_x = SW / 2 + 20
+	boot.add_child(_lbl("Money: " + cash_str + " R", left_x, 108, col_w / 2, 30, 20, Color(0.7, 0.9, 0.7), false))
+	boot.add_child(_lbl("Stars: " + stars_str, left_x + col_w / 2, 108, col_w / 2, 30, 20, Color(1, 0.9, 0.3), false))
+	boot.add_child(_lbl("Select District:", left_x, 140, col_w, 30, 20, Color(0.7, 0.7, 0.8), false))
 	var order = ["business_center", "historic", "residential", "industrial", "waterfront", "suburban", "port", "airport", "university", "tourist"]
+	var y_left = 170
+	var y_right = 170
+	var col = 0
 	for d_id in order:
 		if g == null:
 			break
@@ -443,6 +438,11 @@ func show_main_menu(boot_node):
 		var req = g.district_req_stars.get(d_id, 0)
 		var lc = g.district_levels_count.get(d_id, 0)
 		var dc = g.district_colors.get(d_id, Color(0.2, 0.2, 0.3))
+		var cx = left_x
+		var cy = y_left
+		if col == 1:
+			cx = right_x
+			cy = y_right
 		if unlocked:
 			var done = 0
 			for i in range(1, lc + 1):
@@ -450,16 +450,19 @@ func show_main_menu(boot_node):
 				if g.completed_levels.has(key) and g.completed_levels[key] > 0:
 					done += 1
 			var t = d_name + "  [" + str(done) + "/" + str(lc) + "]"
-			boot.add_child(_btn(t, cx, y, content_w, 65, dc, 22, _on_district, d_id))
+			boot.add_child(_btn(t, cx, cy, col_w, 55, dc, 20, _on_district, d_id))
 		else:
-			boot.add_child(_lbl(d_name + "  [Need " + str(req) + " stars]", cx, y, content_w, 65, 20, Color(0.35, 0.35, 0.4), false))
-		y += 75
-	y += 20
-	boot.add_child(_btn("Upgrade Shop", cx, y, content_w, 60, Color(0.15, 0.12, 0.25), 24, _show_upgrade_shop))
-	y += 70
-	var half_w = content_w / 2 - 10
-	boot.add_child(_btn("Save Game", cx, y, half_w, 50, Color(0.12, 0.18, 0.12), 20, _on_save))
-	boot.add_child(_btn("Reset", cx + half_w + 20, y, half_w, 50, Color(0.25, 0.1, 0.1), 20, _on_reset))
+			boot.add_child(_lbl(d_name + "  [Need " + str(req) + " stars]", cx, cy, col_w, 55, 18, Color(0.35, 0.35, 0.4), false))
+		if col == 0:
+			y_left += 62
+		else:
+			y_right += 62
+		col = 1 - col
+	var max_y = max(y_left, y_right)
+	max_y += 15
+	boot.add_child(_btn("Upgrade Shop", left_x, max_y, col_w, 50, Color(0.15, 0.12, 0.25), 22, _show_upgrade_shop))
+	boot.add_child(_btn("Save Game", right_x, max_y, col_w / 2 - 10, 50, Color(0.12, 0.18, 0.12), 20, _on_save))
+	boot.add_child(_btn("Reset", right_x + col_w / 2 + 10, max_y, col_w / 2 - 10, 50, Color(0.25, 0.1, 0.1), 20, _on_reset))
 
 func _on_district(d_id):
 	current_district_id = d_id
@@ -482,7 +485,7 @@ func _on_reset():
 		g.save_game()
 	show_main_menu(boot)
 
-# ==================== LEVEL SELECT ====================
+# ==================== LEVEL SELECT (LANDSCAPE) ====================
 
 func _show_level_select():
 	_clear()
@@ -522,10 +525,10 @@ func _show_level_select():
 			var c = dc
 			if stars > 0:
 				c = Color(dc.r + 0.08, dc.g + 0.08, dc.b + 0.05)
-			boot.add_child(_btn(t, cx, y, content_w, 65, c, 22, _on_level, i))
+			boot.add_child(_btn(t, cx, y, content_w, 55, c, 22, _on_level, i))
 		else:
-			boot.add_child(_lbl("Level " + str(i) + "  [Locked]", cx, y, content_w, 65, 20, Color(0.35, 0.35, 0.4), false))
-		y += 75
+			boot.add_child(_lbl("Level " + str(i) + "  [Locked]", cx, y, content_w, 55, 18, Color(0.35, 0.35, 0.4), false))
+		y += 62
 
 func _on_level(num):
 	current_level_num = num
@@ -626,7 +629,7 @@ func _gen_map():
 		s.current_district = current_district_id
 		s.current_level_num = current_level_num
 
-# ==================== ISOMETRIC GAMEPLAY ====================
+# ==================== ISOMETRIC GAMEPLAY (LANDSCAPE) ====================
 
 func show_gameplay(boot_node):
 	boot = boot_node
@@ -637,36 +640,29 @@ func show_gameplay(boot_node):
 	var g = _get_gs()
 	var sz = my_grid
 
-	# Calculate tile size to fit screen
-	var map_area_w = SW - 40
-	var map_area_h = SH / 2 - 80
-	# Iso map bounding box: width = sz * TW, height = sz * TH + some block height
+	# LAYOUT: map on left, controls on right
+	# Map area: 60% of screen width
+	var panel_w = 380
+	var map_area_w = SW - panel_w - 20
+	var map_area_h = SH - 20
+
+	# Calculate tile size to fit map area
 	TW = int(map_area_w / sz)
 	TH = TW / 2
-	if sz * TH + BLOCK_H > map_area_h:
-		TH = int((map_area_h - BLOCK_H) / sz)
+	var total_map_h = sz * TH + BLOCK_H + 20
+	if total_map_h > map_area_h:
+		TH = int((map_area_h - BLOCK_H - 20) / sz)
 		TW = TH * 2
 	TW = max(TW, 20)
 	TH = max(TH, 10)
 
 	boot.add_child(_bg(Color(0.02, 0.03, 0.06)))
 
-	# Top bar
-	var content_w = min(SW - 40, 1000)
-	var cx = (SW - content_w) / 2
-	boot.add_child(_btn("<< Back", cx, 10, 120, 36, Color(0.25, 0.15, 0.15), 18, _on_back))
-	var d_name = ""
-	if g != null:
-		d_name = g.district_names.get(current_district_id, "")
-	boot.add_child(_lbl(d_name + " Lv." + str(current_level_num), cx + 130, 10, content_w - 260, 36, 22, Color(1, 0.9, 0.3)))
-	lbl_cash = _lbl("Cash:" + str(my_cash) + "R", cx + content_w - 200, 10, 200, 36, 18, Color(0.7, 0.9, 0.7), false)
-	boot.add_child(lbl_cash)
-
-	# ---- ISOMETRIC MAP using SubViewportContainer ----
+	# ---- ISOMETRIC MAP (left side) ----
 	var map_w = sz * TW
 	var map_h = sz * TH + BLOCK_H + 20
-	var map_x = (SW - map_w) / 2
-	var map_y = 52
+	var map_x = 10
+	var map_y = (SH - map_h) / 2
 
 	# Border
 	var brd = ColorRect.new()
@@ -704,7 +700,7 @@ func show_gameplay(boot_node):
 	if g != null:
 		dc = g.district_colors.get(current_district_id, dc)
 
-	# Draw tiles back-to-front (sorted by gx+gy)
+	# Draw tiles back-to-front
 	for depth in range(0, sz * 2):
 		for gx in range(0, sz):
 			var gy = depth - gx
@@ -715,7 +711,6 @@ func show_gameplay(boot_node):
 				tt = my_map[gy][gx]
 			var spos = _iso_to_screen(gx, gy, mcx, mcy)
 
-			# Tile colors
 			var top_color = Color(dc.r * 0.4, dc.g * 0.4, dc.b * 0.4)
 			var left_color = Color(dc.r * 0.3, dc.g * 0.3, dc.b * 0.3)
 			var right_color = Color(dc.r * 0.25, dc.g * 0.25, dc.b * 0.25)
@@ -724,19 +719,16 @@ func show_gameplay(boot_node):
 			var label_color = Color(0.8, 0.8, 0.8)
 
 			if tt == 0:
-				# Empty ground
 				top_color = Color(dc.r * 0.35, dc.g * 0.35, dc.b * 0.35)
 				left_color = Color(dc.r * 0.25, dc.g * 0.25, dc.b * 0.25)
 				right_color = Color(dc.r * 0.2, dc.g * 0.2, dc.b * 0.2)
 				bh = 2
 			elif tt == 1:
-				# Road
 				top_color = Color(0.35, 0.35, 0.4)
 				left_color = Color(0.25, 0.25, 0.3)
 				right_color = Color(0.2, 0.2, 0.25)
 				bh = 0
 			elif tt == 2:
-				# Building
 				top_color = Color(dc.r + 0.2, dc.g + 0.12, dc.b + 0.06)
 				left_color = Color(dc.r + 0.1, dc.g + 0.06, dc.b + 0.03)
 				right_color = Color(dc.r + 0.05, dc.g + 0.03, dc.b + 0.01)
@@ -744,7 +736,6 @@ func show_gameplay(boot_node):
 				label_text = "B"
 				label_color = Color(0.6, 0.5, 0.4)
 			elif tt == 5:
-				# Player station
 				top_color = Color(0.15, 0.65, 0.2)
 				left_color = Color(0.1, 0.45, 0.15)
 				right_color = Color(0.08, 0.35, 0.12)
@@ -752,7 +743,6 @@ func show_gameplay(boot_node):
 				label_text = "P"
 				label_color = Color(1, 1, 1)
 			elif tt == 6:
-				# Enemy station
 				top_color = Color(0.75, 0.15, 0.15)
 				left_color = Color(0.5, 0.1, 0.1)
 				right_color = Color(0.4, 0.08, 0.08)
@@ -760,69 +750,79 @@ func show_gameplay(boot_node):
 				label_text = "E"
 				label_color = Color(1, 1, 1)
 
-			# Draw left face (if block height > 0)
 			if bh > 0:
-				var lf = _make_left_face(spos.x, spos.y, TW, TH, bh, left_color)
-				root.add_child(lf)
-				var rf = _make_right_face(spos.x, spos.y, TW, TH, bh, right_color)
-				root.add_child(rf)
-
-			# Draw top face
-			var diamond = _make_diamond(spos.x, spos.y, TW, TH, top_color)
-			root.add_child(diamond)
-
-			# Draw label
+				root.add_child(_make_left_face(spos.x, spos.y, TW, TH, bh, left_color))
+				root.add_child(_make_right_face(spos.x, spos.y, TW, TH, bh, right_color))
+			root.add_child(_make_diamond(spos.x, spos.y, TW, TH, top_color))
 			if label_text != "":
-				var lbl = _make_label(spos.x, spos.y - bh / 2, label_text, max(TW / 4, 10), label_color)
-				root.add_child(lbl)
+				root.add_child(_make_label(spos.x, spos.y - bh / 2, label_text, max(TW / 4, 10), label_color))
 
-	# Map legend
-	var cy = map_y + map_h + 4
-	boot.add_child(_lbl("P=You  E=Enemy  B=Building  Gray=Road  Cars=Yellow/Red/Blue", cx, cy, content_w, 22, 13, Color(0.5, 0.5, 0.5), false))
-	cy += 28
+	# ---- RIGHT PANEL ----
+	var px = SW - panel_w
+	var py = 10
+	var pw = panel_w - 20
 
-	# Fuel info
-	boot.add_child(_lbl("-- Fuel Station --", cx, cy, content_w, 26, 18, Color(0.5, 0.5, 0.6)))
-	cy += 28
-	var map_ctrl_w = content_w
-	lbl_fuel = _lbl("Fuel: " + str(my_fuel) + "/" + str(my_capacity) + " L", cx, cy, map_ctrl_w / 2, 26, 18, Color(0.6, 0.8, 1.0), false)
+	# Back + title
+	boot.add_child(_btn("<< Back", px, py, 120, 36, Color(0.25, 0.15, 0.15), 18, _on_back))
+	var d_name = ""
+	if g != null:
+		d_name = g.district_names.get(current_district_id, "")
+	boot.add_child(_lbl(d_name + " Lv." + str(current_level_num), px + 130, py, pw - 130, 36, 20, Color(1, 0.9, 0.3)))
+	py += 42
+	lbl_cash = _lbl("Cash: " + str(my_cash) + " R", px, py, pw, 30, 20, Color(0.7, 0.9, 0.7), false)
+	boot.add_child(lbl_cash)
+	py += 34
+
+	# Fuel section
+	boot.add_child(_lbl("-- Fuel Station --", px, py, pw, 24, 16, Color(0.5, 0.5, 0.6)))
+	py += 26
+	lbl_fuel = _lbl("Fuel: " + str(my_fuel) + "/" + str(my_capacity) + " L", px, py, pw, 24, 16, Color(0.6, 0.8, 1.0), false)
 	boot.add_child(lbl_fuel)
-	lbl_price = _lbl("Price: " + str(int(my_price)) + " R/L", cx + map_ctrl_w / 2, cy, map_ctrl_w / 2, 26, 18, Color(1, 0.9, 0.3), false)
+	py += 26
+	lbl_price = _lbl("Price: " + str(int(my_price)) + " R/L", px, py, pw, 24, 16, Color(1, 0.9, 0.3), false)
 	boot.add_child(lbl_price)
-	cy += 30
-	var bw = map_ctrl_w / 4 - 6
-	boot.add_child(_btn("Price -5", cx, cy, bw, 44, Color(0.2, 0.15, 0.1), 18, _on_price_down))
-	boot.add_child(_btn("Price +5", cx + bw + 8, cy, bw, 44, Color(0.2, 0.15, 0.1), 18, _on_price_up))
-	boot.add_child(_btn("Buy Fuel", cx + bw * 2 + 16, cy, bw, 44, Color(0.1, 0.2, 0.15), 18, _on_buy))
-	boot.add_child(_btn("Buy MAX", cx + bw * 3 + 24, cy, bw, 44, Color(0.1, 0.15, 0.2), 18, _on_buy_max))
-	cy += 50
-	lbl_time = _lbl("Time: 8:00", cx, cy, map_ctrl_w / 3, 26, 18, Color(0.5, 0.5, 0.6), false)
+	py += 30
+	var bw = pw / 2 - 4
+	boot.add_child(_btn("Price -5", px, py, bw, 40, Color(0.2, 0.15, 0.1), 16, _on_price_down))
+	boot.add_child(_btn("Price +5", px + bw + 8, py, bw, 40, Color(0.2, 0.15, 0.1), 16, _on_price_up))
+	py += 46
+	boot.add_child(_btn("Buy Fuel 1000L", px, py, pw, 40, Color(0.1, 0.2, 0.15), 16, _on_buy))
+	py += 46
+	boot.add_child(_btn("Buy MAX Fuel", px, py, pw, 40, Color(0.1, 0.15, 0.2), 16, _on_buy_max))
+	py += 48
+
+	# Time/status
+	lbl_time = _lbl("Time: 8:00", px, py, pw / 3, 24, 16, Color(0.5, 0.5, 0.6), false)
 	boot.add_child(lbl_time)
-	lbl_revenue = _lbl("Revenue: 0 R", cx + map_ctrl_w / 3, cy, map_ctrl_w / 3, 26, 18, Color(0.7, 0.9, 0.7), false)
+	lbl_revenue = _lbl("Rev: 0R", px + pw / 3, py, pw / 3, 24, 16, Color(0.7, 0.9, 0.7), false)
 	boot.add_child(lbl_revenue)
-	lbl_fuel_sold = _lbl("Sold: 0 L", cx + map_ctrl_w * 2 / 3, cy, map_ctrl_w / 3, 26, 18, Color(0.6, 0.8, 1.0), false)
+	lbl_fuel_sold = _lbl("Sold: 0L", px + pw * 2 / 3, py, pw / 3, 24, 16, Color(0.6, 0.8, 1.0), false)
 	boot.add_child(lbl_fuel_sold)
-	cy += 28
-	lbl_msg = _lbl("", cx, cy, map_ctrl_w, 26, 16, Color(0.6, 0.6, 0.6), false)
+	py += 28
+	lbl_msg = _lbl("", px, py, pw, 24, 14, Color(0.6, 0.6, 0.6), false)
 	boot.add_child(lbl_msg)
-	cy += 26
-	lbl_status = _lbl("", cx, cy, map_ctrl_w, 26, 16, Color(0.8, 0.7, 0.3), false)
+	py += 24
+	lbl_status = _lbl("", px, py, pw, 24, 14, Color(0.8, 0.7, 0.3), false)
 	boot.add_child(lbl_status)
-	cy += 30
-	boot.add_child(_lbl("-- Opponents --", cx, cy, map_ctrl_w, 26, 18, Color(0.5, 0.5, 0.6)))
-	cy += 26
-	lbl_opp = _lbl("", cx, cy, map_ctrl_w, 26, 16, Color(0.9, 0.6, 0.3), false)
+	py += 30
+
+	# Opponents
+	boot.add_child(_lbl("-- Opponents --", px, py, pw, 24, 16, Color(0.5, 0.5, 0.6)))
+	py += 26
+	lbl_opp = _lbl("", px, py, pw, 24, 14, Color(0.9, 0.6, 0.3), false)
 	boot.add_child(lbl_opp)
-	cy += 28
+	py += 28
 	for opp in my_opponents:
 		if opp.stations_count > 0:
 			var bp = 60000 + current_level_num * 15000
 			bp = int(bp * opp.loyalty)
-			var ot = opp.name + "  Price:" + str(int(opp.price)) + "R  BUYOUT:" + str(bp) + "R"
-			boot.add_child(_btn(ot, cx, cy, map_ctrl_w, 50, Color(0.2, 0.08, 0.08), 18, _on_buyout, opp.id))
-			cy += 56
-	cy += 12
-	boot.add_child(_btn("Upgrade Shop", cx, cy, map_ctrl_w, 46, Color(0.12, 0.12, 0.2), 20, _show_upgrade_shop))
+			var ot = opp.name + " " + str(int(opp.price)) + "R/L BUYOUT:" + str(bp) + "R"
+			boot.add_child(_btn(ot, px, py, pw, 44, Color(0.2, 0.08, 0.08), 16, _on_buyout, opp.id))
+			py += 50
+	py += 10
+	boot.add_child(_btn("Upgrade Shop", px, py, pw, 44, Color(0.12, 0.12, 0.2), 18, _show_upgrade_shop))
+	py += 50
+	boot.add_child(_lbl("P=You E=Enemy B=Building Gray=Road", px, py, pw, 20, 12, Color(0.4, 0.4, 0.4), false))
 
 func _on_back():
 	my_in_game = false
@@ -922,14 +922,14 @@ func _on_buyout(opp_id):
 func update_gameplay_ui():
 	_refresh_labels()
 
-# ==================== UPGRADE SHOP ====================
+# ==================== UPGRADE SHOP (LANDSCAPE) ====================
 
 func _show_upgrade_shop():
 	_clear()
 	_update_screen_size()
 	current_screen = "upgrade_shop"
 	boot.add_child(_bg(Color(0.05, 0.05, 0.1)))
-	var content_w = min(SW - 40, 1000)
+	var content_w = min(SW - 40, 1200)
 	var cx = (SW - content_w) / 2
 	boot.add_child(_btn("<< Back", cx, 20, 180, 45, Color(0.2, 0.25, 0.3), 22, _on_shop_back))
 	boot.add_child(_lbl("Upgrade Shop", cx + 200, 20, content_w - 200, 50, 38, Color(1, 0.9, 0.3)))
@@ -955,15 +955,15 @@ func _show_upgrade_shop():
 		elif ucat == "marketing":
 			cc = Color(0.2, 0.15, 0.1)
 		if owned:
-			boot.add_child(_lbl("[OWNED] " + un + " - " + ud, cx, y, content_w, 55, 20, Color(0.4, 0.5, 0.4), false))
+			boot.add_child(_lbl("[OWNED] " + un + " - " + ud, cx, y, content_w, 50, 20, Color(0.4, 0.5, 0.4), false))
 		else:
 			var can = (g.cash >= uc and g.total_stars >= us)
 			var bt = un + " - " + ud + " [" + str(uc) + "R, " + str(us) + "*]"
 			if can:
-				boot.add_child(_btn(bt, cx, y, content_w, 55, cc, 20, _on_buy_upg, uid))
+				boot.add_child(_btn(bt, cx, y, content_w, 50, cc, 20, _on_buy_upg, uid))
 			else:
-				boot.add_child(_lbl("[LOCKED] " + bt, cx, y, content_w, 55, 18, Color(0.35, 0.35, 0.4), false))
-		y += 65
+				boot.add_child(_lbl("[LOCKED] " + bt, cx, y, content_w, 50, 18, Color(0.35, 0.35, 0.4), false))
+		y += 58
 
 func _on_buy_upg(uid):
 	var g = _get_gs()
@@ -992,7 +992,7 @@ func _on_shop_back():
 	else:
 		show_main_menu(boot)
 
-# ==================== WIN/LOSE ====================
+# ==================== WIN/LOSE (LANDSCAPE) ====================
 
 func show_result(won, stars, stars_gained):
 	_clear()
@@ -1000,20 +1000,20 @@ func show_result(won, stars, stars_gained):
 	current_screen = "result"
 	if won:
 		boot.add_child(_bg(Color(0.04, 0.08, 0.06)))
-		boot.add_child(_lbl("VICTORY!", 0, 200, SW, 80, 56, Color(0.3, 1.0, 0.3)))
-		boot.add_child(_lbl("Stars earned: " + str(stars), 0, 300, SW, 50, 32, Color(1, 0.9, 0.3)))
+		boot.add_child(_lbl("VICTORY!", 0, 150, SW, 80, 56, Color(0.3, 1.0, 0.3)))
+		boot.add_child(_lbl("Stars earned: " + str(stars), 0, 250, SW, 50, 32, Color(1, 0.9, 0.3)))
 		var g = _get_gs()
 		if g != null:
-			boot.add_child(_lbl("Cash: " + str(g.cash) + " R", 0, 370, SW, 40, 24, Color(0.7, 0.9, 0.7)))
-			boot.add_child(_lbl("Total Stars: " + str(g.total_stars), 0, 420, SW, 40, 24, Color(1, 0.9, 0.3)))
+			boot.add_child(_lbl("Cash: " + str(g.cash) + " R", 0, 310, SW, 40, 24, Color(0.7, 0.9, 0.7)))
+			boot.add_child(_lbl("Total Stars: " + str(g.total_stars), 0, 360, SW, 40, 24, Color(1, 0.9, 0.3)))
 	else:
 		boot.add_child(_bg(Color(0.1, 0.04, 0.04)))
-		boot.add_child(_lbl("BANKRUPT!", 0, 200, SW, 80, 56, Color(1.0, 0.2, 0.2)))
-		boot.add_child(_lbl("Your business went under.", 0, 300, SW, 50, 28, Color(0.8, 0.5, 0.5)))
-	var bw = min(500, SW - 80)
-	var bx = (SW - bw) / 2
-	boot.add_child(_btn("Back to Menu", bx, 550, bw, 60, Color(0.15, 0.2, 0.25), 26, show_main_menu.bind(boot)))
-	boot.add_child(_btn("Retry Level", bx, 630, bw, 60, Color(0.2, 0.15, 0.1), 26, _on_retry))
+		boot.add_child(_lbl("BANKRUPT!", 0, 150, SW, 80, 56, Color(1.0, 0.2, 0.2)))
+		boot.add_child(_lbl("Your business went under.", 0, 250, SW, 50, 28, Color(0.8, 0.5, 0.5)))
+	var bw = min(500, SW / 2 - 40)
+	var bx = SW / 2 - bw - 10
+	boot.add_child(_btn("Back to Menu", bx, 450, bw, 60, Color(0.15, 0.2, 0.25), 26, show_main_menu.bind(boot)))
+	boot.add_child(_btn("Retry Level", bx + bw + 20, 450, bw, 60, Color(0.2, 0.15, 0.1), 26, _on_retry))
 
 func _on_retry():
 	_gen_map()
