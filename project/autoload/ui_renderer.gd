@@ -870,11 +870,15 @@ func show_gameplay(boot_node):
 	tb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	boot.add_child(tb)
 
-	# BACK BUTTON — top-left, VERY prominent
-	boot.add_child(_btn("BACK", 10, 10, 180, 60, Color(0.5, 0.1, 0.1), 28, _on_back))
+	# BACK BUTTON — away from edge, centered in top bar
+	var back_w = 200
+	var back_h = 55
+	var back_x = 30
+	var back_y = 12
+	boot.add_child(_btn("BACK", back_x, back_y, back_w, back_h, Color(0.5, 0.1, 0.1), 26, _on_back_pressed))
 
 	# Touch diagnostic — shows touch count and position
-	lbl_touch_diag = _lbl("Touch:0", 200, 10, 300, 26, 16, Color(0.5, 0.8, 0.5), false)
+	lbl_touch_diag = _lbl("Touch:0", back_x + back_w + 10, back_y, 300, 26, 16, Color(0.5, 0.8, 0.5), false)
 	boot.add_child(lbl_touch_diag)
 
 	var d_name = ""
@@ -941,7 +945,12 @@ func show_gameplay(boot_node):
 	# Legend
 	boot.add_child(_lbl("P=You  E=Enemy  B=Building  Gray=Road  Warm cars=To you  Cool cars=To enemy", 0, SH - 20, SW, 20, 12, Color(0.3, 0.3, 0.4)))
 
+func _on_back_pressed():
+	# Show confirmation dialog instead of leaving immediately
+	_show_leave_confirm()
+
 func _on_back():
+	# Actually leave the level — called from YES button in confirmation dialog
 	back_pressed = true
 	my_in_game = false
 	cars = []
@@ -950,6 +959,51 @@ func _on_back():
 	if s != null:
 		s.in_game = false
 	show_main_menu(boot)
+
+func _show_leave_confirm():
+	# Dark overlay
+	var overlay = ColorRect.new()
+	overlay.color = Color(0, 0, 0, 0.7)
+	overlay.position = Vector2(0, 0)
+	overlay.size = Vector2(SW, SH)
+	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	boot.add_child(overlay)
+	# Dialog box
+	var dw = 600
+	var dh = 250
+	var dx = (SW - dw) / 2
+	var dy = (SH - dh) / 2
+	var dlg = ColorRect.new()
+	dlg.color = Color(0.1, 0.1, 0.18)
+	dlg.position = Vector2(dx, dy)
+	dlg.size = Vector2(dw, dh)
+	dlg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	boot.add_child(dlg)
+	# Border
+	var border = ColorRect.new()
+	border.color = Color(0.4, 0.2, 0.2)
+	border.position = Vector2(dx - 3, dy - 3)
+	border.size = Vector2(dw + 6, dh + 6)
+	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	boot.add_child(border)
+	# Move border behind dialog
+	boot.move_child(border, boot.get_child_count() - 2)
+	# Question text
+	boot.add_child(_lbl("Leave level?", dx, dy + 30, dw, 40, 32, Color(1, 0.9, 0.3)))
+	boot.add_child(_lbl("Progress will be lost!", dx, dy + 80, dw, 30, 20, Color(0.8, 0.5, 0.5)))
+	# YES button
+	var yes_w = 220
+	var yes_h = 55
+	var yes_x = dx + 40
+	var yes_y = dy + 140
+	boot.add_child(_btn("YES, LEAVE", yes_x, yes_y, yes_w, yes_h, Color(0.5, 0.1, 0.1), 22, _on_back))
+	# NO button
+	var no_x = dx + dw - yes_w - 40
+	boot.add_child(_btn("NO, STAY", no_x, yes_y, yes_w, yes_h, Color(0.1, 0.3, 0.15), 22, _on_back_cancel))
+
+func _on_back_cancel():
+	# Rebuild gameplay screen — game state is preserved in ui_renderer variables
+	show_gameplay(boot)
 
 func _on_price_up():
 	my_price = min(my_price + 5.0, 85.0)
