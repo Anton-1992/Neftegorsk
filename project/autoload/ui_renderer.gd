@@ -251,6 +251,20 @@ func _spawn_car():
 	if my_map.size() == 0:
 		return
 	var sz = my_grid
+	# Collect all station positions (player + opponents)
+	var stations = []
+	stations.append(player_pos)
+	for opp in my_opponents:
+		if opp.stations_count > 0:
+			# Find enemy station on map
+			for y in range(sz):
+				for x in range(sz):
+					if my_map.size() > y and my_map[y].size() > x and my_map[y][x] == 6:
+						stations.append(Vector2i(x, y))
+	# Pick a random destination
+	if stations.size() == 0:
+		return
+	var dest = stations[randi() % stations.size()]
 	var edges = []
 	for x in range(sz):
 		if my_map.size() > 0 and my_map[0].size() > x and my_map[0][x] == 1:
@@ -265,19 +279,29 @@ func _spawn_car():
 	if edges.size() == 0:
 		return
 	var edge = edges[randi() % edges.size()]
-	var path = _find_road_path(edge.x, edge.y, player_pos.x, player_pos.y)
+	var path = _find_road_path(edge.x, edge.y, dest.x, dest.y)
 	if path.size() < 2:
 		return
+	# Cars to player = warm colors, to enemy = cool colors
 	var car_color = Color(0.9, 0.8, 0.2)
-	var r = randi() % 4
-	if r == 0:
-		car_color = Color(0.9, 0.3, 0.2)
-	elif r == 1:
-		car_color = Color(0.2, 0.5, 0.9)
-	elif r == 2:
-		car_color = Color(0.9, 0.9, 0.9)
-	elif r == 3:
-		car_color = Color(0.2, 0.8, 0.3)
+	if dest == player_pos:
+		# Warm colors for player station
+		var r = randi() % 3
+		if r == 0:
+			car_color = Color(0.9, 0.8, 0.2)
+		elif r == 1:
+			car_color = Color(0.9, 0.5, 0.2)
+		else:
+			car_color = Color(0.2, 0.8, 0.3)
+	else:
+		# Cool colors for enemy station
+		var r = randi() % 3
+		if r == 0:
+			car_color = Color(0.2, 0.5, 0.9)
+		elif r == 1:
+			car_color = Color(0.7, 0.2, 0.8)
+		else:
+			car_color = Color(0.9, 0.9, 0.9)
 	cars.append({
 		"path": path,
 		"step": 0,
@@ -443,7 +467,7 @@ func show_main_menu(boot_node):
 	boot.add_child(_btn("Settings", btn_x1, btn_y, btn_w, btn_h, Color(0.15, 0.15, 0.25), 28, _show_settings))
 	boot.add_child(_btn("Achievements", btn_x2, btn_y, btn_w, btn_h, Color(0.2, 0.15, 0.08), 28, _show_achievements))
 	# Version
-	boot.add_child(_lbl("v31", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
+	boot.add_child(_lbl("v32", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
 
 # ==================== SETTINGS ====================
 
@@ -809,6 +833,7 @@ func show_gameplay(boot_node):
 	svc.position = Vector2(map_x, map_y)
 	svc.size = Vector2(map_w, map_h)
 	svc.stretch = true
+	svc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	boot.add_child(svc)
 
 	var svp = SubViewport.new()
@@ -889,11 +914,18 @@ func show_gameplay(boot_node):
 	var py = 10
 	var pw = panel_w - 20
 
-	boot.add_child(_btn("<< Back", px, py, 160, 44, Color(0.25, 0.15, 0.15), 22, _on_back))
+	# Right panel top bar
+	var top_bar = ColorRect.new()
+	top_bar.color = Color(0.08, 0.08, 0.12)
+	top_bar.position = Vector2(px - 10, 0)
+	top_bar.size = Vector2(pw + 20, 60)
+	top_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	boot.add_child(top_bar)
+	boot.add_child(_btn("<< Back", px, py, 200, 52, Color(0.3, 0.15, 0.15), 24, _on_back))
 	var d_name = ""
 	if g != null:
 		d_name = g.district_names.get(current_district_id, "")
-	boot.add_child(_lbl(d_name + " Lv." + str(current_level_num), px + 130, py, pw - 130, 36, 20, Color(1, 0.9, 0.3)))
+	boot.add_child(_lbl(d_name + " Lv." + str(current_level_num), px + 210, py + 8, pw - 210, 36, 20, Color(1, 0.9, 0.3)))
 	py += 42
 	lbl_cash = _lbl("Cash: " + str(my_cash) + " R", px, py, pw, 30, 20, Color(0.7, 0.9, 0.7), false)
 	boot.add_child(lbl_cash)
