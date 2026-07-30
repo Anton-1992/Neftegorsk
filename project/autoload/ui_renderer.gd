@@ -34,7 +34,7 @@ var SH = 1080
 
 # Isometric map references
 var map_node = null
-var map_svp = null
+
 var cars = []
 
 # Isometric tile size
@@ -85,7 +85,7 @@ func _clear():
 		boot.remove_child(c)
 		c.free()
 	map_node = null
-	map_svp = null
+
 	cars = []
 
 func _btn(text, x, y, w, h, color, fs, cb, arg = null):
@@ -309,6 +309,7 @@ func _spawn_car():
 		"speed": 1.5 + randf() * 1.0,
 		"color": car_color,
 		"node": null,
+		"dest": dest,
 	})
 
 func _update_cars(delta):
@@ -317,16 +318,14 @@ func _update_cars(delta):
 	var map_w = my_grid * TW
 	var mcx = map_w / 2
 	var mcy = TH
+	# Clear car drawing data
+	map_node.car_data = []
 	for car in cars:
 		car.t += delta * car.speed
 		if car.t >= 1.0:
 			car.t = 0.0
 			car.step += 1
 		if car.step >= car.path.size() - 1:
-			if car.node != null:
-				map_node.remove_child(car.node)
-				car.node.free()
-				car.node = null
 			car.step = -1
 			continue
 		if car.step < 0:
@@ -337,28 +336,13 @@ func _update_cars(delta):
 		var gx = from.x + (to.x - from.x) * t
 		var gy = from.y + (to.y - from.y) * t
 		var spos = _iso_to_screen(gx, gy, mcx, mcy)
-		if car.node == null:
-			var p = Polygon2D.new()
-			var verts = PackedVector2Array()
-			verts.append(Vector2(-6, -3))
-			verts.append(Vector2(6, -3))
-			verts.append(Vector2(6, 3))
-			verts.append(Vector2(-6, 3))
-			p.polygon = verts
-			p.color = car.color
-			p.position = spos
-			map_node.add_child(p)
-			car.node = p
-		else:
-			car.node.position = spos
+		map_node.car_data.append({"x": spos.x, "y": spos.y, "color": car.color})
 	var alive = []
 	for car in cars:
 		if car.step >= 0:
 			alive.append(car)
-		elif car.node != null:
-			map_node.remove_child(car.node)
-			car.node.free()
 	cars = alive
+	map_node.request_redraw()
 
 # ==================== SIMULATION ====================
 
@@ -467,7 +451,7 @@ func show_main_menu(boot_node):
 	boot.add_child(_btn("Settings", btn_x1, btn_y, btn_w, btn_h, Color(0.15, 0.15, 0.25), 28, _show_settings))
 	boot.add_child(_btn("Achievements", btn_x2, btn_y, btn_w, btn_h, Color(0.2, 0.15, 0.08), 28, _show_achievements))
 	# Version
-	boot.add_child(_lbl("v32", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
+	boot.add_child(_lbl("v33", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
 
 # ==================== SETTINGS ====================
 
@@ -829,22 +813,18 @@ func show_gameplay(boot_node):
 	brd.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	boot.add_child(brd)
 
-	var svc = SubViewportContainer.new()
-	svc.position = Vector2(map_x, map_y)
-	svc.size = Vector2(map_w, map_h)
-	svc.stretch = true
-	svc.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	boot.add_child(svc)
-
-	var svp = SubViewport.new()
-	svp.size = Vector2(map_w, map_h)
-	svp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	svc.add_child(svp)
-	map_svp = svp
-
-	var root = Node2D.new()
-	svp.add_child(root)
-	map_node = root
+	var map_view_script = ResourceLoader.load("res://scripts/map_view.gd")
+	var map_view = Control.new()
+	map_view.set_script(map_view_script)
+	map_view.position = Vector2(map_x, map_y)
+	map_view.size = Vector2(map_w, map_h)
+	map_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	map_view.TW = TW
+	map_view.TH = TH
+	if font != null:
+		map_view.font = font
+	boot.add_child(map_view)
+	map_node = map_view
 
 	var mcx = map_w / 2
 	var mcy = TH
@@ -902,12 +882,19 @@ func show_gameplay(boot_node):
 				label_text = "E"
 				label_color = Color(1, 1, 1)
 
-			if bh > 0:
-				root.add_child(_make_left_face(spos.x, spos.y, TW, TH, bh, left_color))
-				root.add_child(_make_right_face(spos.x, spos.y, TW, TH, bh, right_color))
-			root.add_child(_make_diamond(spos.x, spos.y, TW, TH, top_color))
+			var tile_data = {
+				"x": spos.x, "y": spos.y,
+				"tc": top_color, "lc": left_color, "rc": right_color,
+				"bh": bh
+			}
+			map_node.tiles.append(tile_data)
 			if label_text != "":
-				root.add_child(_make_label(spos.x, spos.y - bh / 2, label_text, max(TW / 4, 10), label_color))
+				map_node.labels.append({
+					"x": spos.x, "y": spos.y - bh / 2,
+				"text": label_text, "fs": max(TW / 4, 10),
+				"color": label_color
+			})
+	map_node.request_redraw()
 
 	# ---- RIGHT PANEL ----
 	var px = SW - panel_w
