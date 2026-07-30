@@ -42,6 +42,10 @@ var cars = []
 # Back button diagnostic
 var back_pressed = false
 
+# Touch diagnostic counter
+var touch_count = 0
+var lbl_touch_diag = null
+
 var lbl_cash = null
 var lbl_fuel = null
 var lbl_price = null
@@ -81,6 +85,16 @@ func _clear():
 	if boot == null:
 		return
 	map_view = null
+	lbl_touch_diag = null
+	lbl_cash = null
+	lbl_fuel = null
+	lbl_price = null
+	lbl_time = null
+	lbl_msg = null
+	lbl_status = null
+	lbl_opp = null
+	lbl_revenue = null
+	lbl_fuel_sold = null
 	var ch = boot.get_children()
 	for c in ch:
 		boot.remove_child(c)
@@ -139,6 +153,16 @@ func _bg(color = Color(0.06, 0.08, 0.12)):
 # ==================== ISOMETRIC HELPERS ====================
 
 # ==================== PROCESS ====================
+
+func _input(event):
+	if event is InputEventScreenTouch and event.pressed:
+		touch_count += 1
+		if lbl_touch_diag != null:
+			lbl_touch_diag.text = "Touch:" + str(touch_count) + " " + str(int(event.position.x)) + "," + str(int(event.position.y))
+	if event is InputEventMouseButton and event.pressed:
+		touch_count += 1
+		if lbl_touch_diag != null:
+			lbl_touch_diag.text = "Click:" + str(touch_count) + " " + str(int(event.position.x)) + "," + str(int(event.position.y))
 
 func _process(delta):
 	_update_screen_size()
@@ -400,7 +424,11 @@ func show_main_menu(boot_node):
 	boot.add_child(_btn("Settings", btn_x1, btn_y, btn_w, btn_h, Color(0.15, 0.15, 0.25), 28, _show_settings))
 	boot.add_child(_btn("Achievements", btn_x2, btn_y, btn_w, btn_h, Color(0.2, 0.15, 0.08), 28, _show_achievements))
 	# Version
-	boot.add_child(_lbl("v35", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
+	boot.add_child(_lbl("v36", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
+
+	# Touch diagnostic on main menu too
+	lbl_touch_diag = _lbl("Touch:0", 20, SH - 70, 400, 26, 16, Color(0.5, 0.8, 0.5), false)
+	boot.add_child(lbl_touch_diag)
 
 # ==================== SETTINGS ====================
 
@@ -844,6 +872,10 @@ func show_gameplay(boot_node):
 
 	# BACK BUTTON — top-left, VERY prominent
 	boot.add_child(_btn("BACK", 10, 10, 180, 60, Color(0.5, 0.1, 0.1), 28, _on_back))
+
+	# Touch diagnostic — shows touch count and position
+	lbl_touch_diag = _lbl("Touch:0", 200, 10, 300, 26, 16, Color(0.5, 0.8, 0.5), false)
+	boot.add_child(lbl_touch_diag)
 
 	var d_name = ""
 	if g != null:
