@@ -1,4 +1,4 @@
-## UIRenderer.gd — v25: full gameplay
+## UIRenderer.gd — v25e: visible map, live simulation, cars
 extends Node
 
 var boot = null
@@ -8,6 +8,7 @@ var sim = null
 var current_district_id = ""
 var current_level_num = 0
 var current_screen = "main_menu"
+var ui_timer = 0.0
 
 var lbl_cash = null
 var lbl_fuel = null
@@ -17,6 +18,7 @@ var lbl_msg = null
 var lbl_opp_msg = null
 var lbl_revenue = null
 var lbl_fuel_sold = null
+var lbl_status = null
 
 func _get_gs():
 	if gs == null:
@@ -87,6 +89,47 @@ func _bg(color = Color(0.06, 0.08, 0.12)):
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return bg
 
+# Live update every frame when in gameplay
+func _process(delta):
+	if current_screen != "gameplay":
+		return
+	ui_timer += delta
+	if ui_timer < 1.0:
+		return
+	ui_timer = 0.0
+	_update_live()
+
+func _update_live():
+	var s = _get_sim()
+	var g = _get_gs()
+	if s == null or g == null:
+		return
+	if lbl_cash != null:
+		lbl_cash.text = "Cash: " + str(g.cash) + " R"
+	if lbl_fuel != null:
+		lbl_fuel.text = "Fuel: " + str(s.fuel_stored) + "/" + str(g.player_fuel_capacity) + " L"
+	if lbl_price != null:
+		lbl_price.text = "Price: " + str(int(s.fuel_price)) + " R/L"
+	if lbl_time != null:
+		var h = int(s.game_time) % 24
+		lbl_time.text = "Time: " + str(h) + ":00"
+	if lbl_revenue != null:
+		lbl_revenue.text = "Revenue: " + str(s.revenue) + " R"
+	if lbl_fuel_sold != null:
+		lbl_fuel_sold.text = "Sold: " + str(s.fuel_sold) + " L"
+	if lbl_status != null:
+		var h = int(s.game_time) % 24
+		var period = "Night"
+		if h >= 7 and h <= 9:
+			period = "Morning rush!"
+		elif h >= 12 and h <= 14:
+			period = "Lunch rush!"
+		elif h >= 17 and h <= 19:
+			period = "Evening rush!"
+		elif h >= 6 and h <= 22:
+			period = "Daytime"
+		lbl_status.text = period + " | Pumps: " + str(s.player_pumps) + " | Fuel: " + str(s.fuel_stored) + "L"
+
 # ==================== MAIN MENU ====================
 
 func show_main_menu(boot_node):
@@ -96,7 +139,7 @@ func show_main_menu(boot_node):
 	current_screen = "main_menu"
 	boot.add_child(_bg())
 	boot.add_child(_lbl("NEFTEGORSK", 0, 30, 1080, 80, 56, Color(1, 0.9, 0.3)))
-	boot.add_child(_lbl("v25", 0, 100, 1080, 30, 18, Color(0.5, 0.5, 0.6)))
+	boot.add_child(_lbl("v25e", 0, 100, 1080, 30, 18, Color(0.5, 0.5, 0.6)))
 	var g = _get_gs()
 	var cash_str = "0"
 	var stars_str = "0"
@@ -224,7 +267,6 @@ func _init_sim():
 		s.current_district = current_district_id
 		s.current_level_num = current_level_num
 	s.in_game = false
-	# Generate map safely
 	s.map_tiles = []
 	s.opponents = []
 	var rng = RandomNumberGenerator.new()
@@ -235,7 +277,6 @@ func _init_sim():
 		for x in range(sz):
 			row.append(0)
 		s.map_tiles.append(row)
-	# Roads
 	var h_count = 2
 	if current_level_num > 2:
 		h_count = 3
@@ -247,7 +288,6 @@ func _init_sim():
 		var rx = rng.randi_range(1, sz - 2)
 		for y in range(sz):
 			s.map_tiles[y][rx] = 1
-	# Buildings near roads
 	for y in range(sz):
 		for x in range(sz):
 			if s.map_tiles[y][x] == 0:
@@ -260,7 +300,6 @@ func _init_sim():
 							near = true
 				if near and rng.randf() < 0.55:
 					s.map_tiles[y][x] = 2
-	# Player station at center
 	var px = sz / 2
 	var py = sz / 2
 	for y in range(sz):
@@ -268,14 +307,11 @@ func _init_sim():
 			if s.map_tiles[y][x] == 1 and abs(x - sz / 2) <= 2 and abs(y - sz / 2) <= 2:
 				px = x
 				py = y
+				break
 	s.map_tiles[py][px] = 5
-	# Opponents
 	var opp_count = min(current_level_num, 3)
 	var archetypes = ["shark", "miser", "opportunist"]
-	var arch_names = {"shark": "Akula", "miser": "Skupoy", "opportunist": "Opportunist"}
-	var arch_colors = {"shark": Color(0.9, 0.2, 0.2), "miser": Color(0.9, 0.75, 0.2), "opportunist": Color(0.4, 0.4, 0.9)}
 	for i in range(opp_count):
-		var placed = false
 		for attempt in range(30):
 			var ox = rng.randi_range(1, sz - 2)
 			var oy = rng.randi_range(1, sz - 2)
@@ -318,12 +354,10 @@ func _init_sim():
 					"cash": 30000 + current_level_num * 10000,
 					"loyalty": opp_loyalty,
 					"stations_count": 1,
-					"color": arch_colors[arch],
 					"aggression": opp_aggression,
 					"change_freq": opp_change_freq,
 					"margin": opp_margin,
 				})
-				placed = true
 				break
 	s.in_game = true
 
@@ -334,6 +368,7 @@ func show_gameplay(boot_node):
 	_load_font()
 	_clear()
 	current_screen = "gameplay"
+	ui_timer = 0.0
 	var g = _get_gs()
 	var s = _get_sim()
 	boot.add_child(_bg(Color(0.04, 0.06, 0.1)))
@@ -347,14 +382,66 @@ func show_gameplay(boot_node):
 		cash_str = str(g.cash)
 	lbl_cash = _lbl("Cash: " + cash_str + " R", 700, 15, 360, 40, 22, Color(0.7, 0.9, 0.7), false)
 	boot.add_child(lbl_cash)
-	_draw_map(s)
+
+	# === MAP === top-down grid using ColorRect
+	var sz = 8
+	var mt = []
+	if s != null:
+		sz = s.grid_size
+		mt = s.map_tiles
+	var ts = 42
+	var map_w = sz * ts
+	var map_x = 540 - map_w / 2
+	var map_y = 60
+	var dc = Color(0.2, 0.2, 0.3)
+	if g != null:
+		dc = g.district_colors.get(current_district_id, dc)
+	# Map border
+	var border = ColorRect.new()
+	border.color = Color(dc.r * 0.3, dc.g * 0.3, dc.b * 0.3)
+	border.position = Vector2(map_x - 4, map_y - 4)
+	border.size = Vector2(map_w + 8, sz * ts + 8)
+	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	boot.add_child(border)
+	for iy in range(sz):
+		for ix in range(sz):
+			var tt = 0
+			if mt.size() > iy and mt[iy].size() > ix:
+				tt = mt[iy][ix]
+			var c = Color(dc.r * 0.7, dc.g * 0.7, dc.b * 0.7)
+			var txt = ""
+			var tc = Color(1, 1, 1)
+			if tt == 0:
+				c = Color(dc.r * 0.6, dc.g * 0.6, dc.b * 0.6)
+			elif tt == 1:
+				c = Color(0.35, 0.35, 0.4)
+				txt = ""
+			elif tt == 2:
+				c = Color(dc.r + 0.25, dc.g + 0.15, dc.b + 0.08)
+				txt = "B"
+				tc = Color(0.6, 0.5, 0.4)
+			elif tt == 5:
+				c = Color(0.15, 0.65, 0.2)
+				txt = "P"
+				tc = Color(1, 1, 1)
+			elif tt == 6:
+				c = Color(0.75, 0.15, 0.15)
+				txt = "E"
+				tc = Color(1, 1, 1)
+			var cr = ColorRect.new()
+			cr.color = c
+			cr.position = Vector2(map_x + ix * ts, map_y + iy * ts)
+			cr.size = Vector2(ts - 2, ts - 2)
+			cr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			boot.add_child(cr)
+			if txt != "":
+				var tl = _lbl(txt, map_x + ix * ts, map_y + iy * ts, ts - 2, ts - 2, 18, tc)
+				boot.add_child(tl)
 	# Map legend
-	var lg = _get_gs()
-	var d_name = ""
-	if lg != null:
-		d_name = lg.district_names.get(current_district_id, "")
-	boot.add_child(_lbl("Green=YOU  Red=Enemy  Gray=Road  Brown=Building", 40, 470, 1000, 25, 14, Color(0.5, 0.5, 0.5), false))
-	var py = 500
+	boot.add_child(_lbl("P=You  E=Enemy  B=Building  Gray=Road", map_x - 4, map_y + sz * ts + 4, map_w + 8, 22, 13, Color(0.5, 0.5, 0.5), false))
+
+	# === INFO PANEL ===
+	var py = map_y + sz * ts + 30
 	boot.add_child(_lbl("-- Fuel Station --", 40, py, 1000, 30, 20, Color(0.5, 0.5, 0.6)))
 	var fuel_str = "0"
 	var price_str = "50"
@@ -364,11 +451,11 @@ func show_gameplay(boot_node):
 		price_str = str(int(s.fuel_price))
 	if g != null:
 		cap_str = str(g.player_fuel_capacity)
-	lbl_fuel = _lbl("Fuel: " + fuel_str + "/" + cap_str + " L", 40, py + 35, 500, 30, 20, Color(0.6, 0.8, 1.0), false)
+	lbl_fuel = _lbl("Fuel: " + fuel_str + "/" + cap_str + " L", 40, py + 30, 500, 28, 20, Color(0.6, 0.8, 1.0), false)
 	boot.add_child(lbl_fuel)
-	lbl_price = _lbl("Price: " + price_str + " R/L", 540, py + 35, 500, 30, 20, Color(1, 0.9, 0.3), false)
+	lbl_price = _lbl("Price: " + price_str + " R/L", 540, py + 30, 500, 28, 20, Color(1, 0.9, 0.3), false)
 	boot.add_child(lbl_price)
-	var cy = py + 75
+	var cy = py + 62
 	boot.add_child(_btn("Price -5", 40, cy, 230, 50, Color(0.2, 0.15, 0.1), 20, _on_price_down))
 	boot.add_child(_btn("Price +5", 280, cy, 230, 50, Color(0.2, 0.15, 0.1), 20, _on_price_up))
 	boot.add_child(_btn("Buy Fuel", 520, cy, 250, 50, Color(0.1, 0.2, 0.15), 20, _on_buy))
@@ -377,24 +464,27 @@ func show_gameplay(boot_node):
 	if s != null:
 		var h = int(s.game_time) % 24
 		time_str = str(h) + ":00"
-	lbl_time = _lbl("Time: " + time_str, 40, cy + 60, 300, 30, 20, Color(0.5, 0.5, 0.6), false)
+	lbl_time = _lbl("Time: " + time_str, 40, cy + 55, 300, 28, 20, Color(0.5, 0.5, 0.6), false)
 	boot.add_child(lbl_time)
 	var rev_str = "0"
 	var sold_str = "0"
 	if s != null:
 		rev_str = str(s.revenue)
 		sold_str = str(s.fuel_sold)
-	lbl_revenue = _lbl("Revenue: " + rev_str + " R", 340, cy + 60, 350, 30, 20, Color(0.7, 0.9, 0.7), false)
+	lbl_revenue = _lbl("Revenue: " + rev_str + " R", 340, cy + 55, 350, 28, 20, Color(0.7, 0.9, 0.7), false)
 	boot.add_child(lbl_revenue)
-	lbl_fuel_sold = _lbl("Sold: " + sold_str + " L", 700, cy + 60, 340, 30, 20, Color(0.6, 0.8, 1.0), false)
+	lbl_fuel_sold = _lbl("Sold: " + sold_str + " L", 700, cy + 55, 340, 28, 20, Color(0.6, 0.8, 1.0), false)
 	boot.add_child(lbl_fuel_sold)
-	lbl_msg = _lbl("", 40, cy + 100, 1000, 30, 18, Color(0.6, 0.6, 0.6), false)
+	lbl_msg = _lbl("", 40, cy + 88, 1000, 28, 16, Color(0.6, 0.6, 0.6), false)
 	boot.add_child(lbl_msg)
+	lbl_status = _lbl("", 40, cy + 112, 1000, 28, 16, Color(0.8, 0.7, 0.3), false)
+	boot.add_child(lbl_status)
+	# Opponents
 	var oy = cy + 145
 	boot.add_child(_lbl("-- Opponents --", 40, oy, 1000, 30, 20, Color(0.5, 0.5, 0.6)))
-	lbl_opp_msg = _lbl("", 40, oy + 30, 1000, 30, 18, Color(0.9, 0.6, 0.3), false)
+	lbl_opp_msg = _lbl("", 40, oy + 28, 1000, 28, 16, Color(0.9, 0.6, 0.3), false)
 	boot.add_child(lbl_opp_msg)
-	var oby = oy + 65
+	var oby = oy + 58
 	if s != null:
 		var ol = s.opponents
 		if ol != null:
@@ -407,68 +497,6 @@ func show_gameplay(boot_node):
 	oby += 15
 	boot.add_child(_btn("Upgrade Shop", 40, oby, 1000, 50, Color(0.12, 0.12, 0.2), 22, _show_upgrade_shop))
 
-func _draw_map(s):
-	var gs_val = 8
-	var mt = []
-	if s != null:
-		gs_val = s.grid_size
-		mt = s.map_tiles
-	var tw = 36
-	var th = 18
-	var ox = 540
-	var oy = 80
-	var g = _get_gs()
-	var dc = Color(0.2, 0.2, 0.3)
-	if g != null:
-		dc = g.district_colors.get(current_district_id, dc)
-	for iy in range(gs_val):
-		for ix in range(gs_val):
-			var tt = 0
-			if mt.size() > iy and mt[iy].size() > ix:
-				tt = mt[iy][ix]
-			var c = dc
-			var border = Color(dc.r * 0.5, dc.g * 0.5, dc.b * 0.5)
-			if tt == 1:
-				c = Color(dc.r + 0.12, dc.g + 0.12, dc.b + 0.1)
-				border = Color(c.r * 0.6, c.g * 0.6, c.b * 0.6)
-			elif tt == 2:
-				c = Color(dc.r + 0.2, dc.g + 0.15, dc.b + 0.08)
-				border = Color(c.r * 0.6, c.g * 0.6, c.b * 0.6)
-			elif tt == 3:
-				c = Color(0.15, 0.25, 0.4)
-				border = Color(0.1, 0.15, 0.25)
-			elif tt == 4:
-				c = Color(0.15, 0.35, 0.2)
-				border = Color(0.1, 0.2, 0.12)
-			elif tt == 5:
-				c = Color(0.2, 0.7, 0.25)
-				border = Color(0.15, 0.5, 0.18)
-			elif tt == 6:
-				c = Color(0.8, 0.2, 0.2)
-				border = Color(0.5, 0.12, 0.12)
-			var sx = ox + (ix - iy) * tw
-			var sy = oy + (ix + iy) * th
-			# Diamond tile using 4 small ColorRects forming a diamond
-			# Top triangle
-			var t1 = ColorRect.new()
-			t1.color = c
-			t1.position = Vector2(sx - tw / 2, sy)
-			t1.size = Vector2(tw, th / 2)
-			t1.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			boot.add_child(t1)
-			# Bottom triangle (slightly darker for depth)
-			var t2 = ColorRect.new()
-			t2.color = Color(c.r * 0.85, c.g * 0.85, c.b * 0.85)
-			t2.position = Vector2(sx - tw / 2, sy + th / 2)
-			t2.size = Vector2(tw, th / 2)
-			t2.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			boot.add_child(t2)
-			# Label for special tiles
-			if tt == 5:
-				boot.add_child(_lbl("YOU", sx - tw, sy - 4, tw * 2, th, 10, Color(1, 1, 1)))
-			elif tt == 6:
-				boot.add_child(_lbl("!", sx - tw, sy - 4, tw * 2, th, 12, Color(1, 0.8, 0.3)))
-
 func _on_back():
 	var s = _get_sim()
 	if s != null:
@@ -479,13 +507,13 @@ func _on_price_up():
 	var s = _get_sim()
 	if s != null:
 		s.fuel_price = min(s.fuel_price + 5.0, 85.0)
-	update_gameplay_ui()
+	_update_live()
 
 func _on_price_down():
 	var s = _get_sim()
 	if s != null:
 		s.fuel_price = max(s.fuel_price - 5.0, 35.0)
-	update_gameplay_ui()
+	_update_live()
 
 func _on_buy():
 	var g = _get_gs()
@@ -502,7 +530,7 @@ func _on_buy():
 	else:
 		if lbl_msg != null:
 			lbl_msg.text = "Not enough cash! Need " + str(cost) + "R"
-	update_gameplay_ui()
+	_update_live()
 
 func _on_buy_max():
 	var g = _get_gs()
@@ -531,7 +559,7 @@ func _on_buy_max():
 		else:
 			if lbl_msg != null:
 				lbl_msg.text = "Not enough cash!"
-	update_gameplay_ui()
+	_update_live()
 
 func _on_buyout(opp_id):
 	var g = _get_gs()
@@ -551,26 +579,10 @@ func _on_buyout(opp_id):
 	else:
 		if lbl_msg != null:
 			lbl_msg.text = "Not enough cash! Need " + str(price) + "R"
-	update_gameplay_ui()
+	_update_live()
 
 func update_gameplay_ui():
-	var g = _get_gs()
-	var s = _get_sim()
-	if g == null or s == null:
-		return
-	if lbl_cash != null:
-		lbl_cash.text = "Cash: " + str(g.cash) + " R"
-	if lbl_fuel != null:
-		lbl_fuel.text = "Fuel: " + str(s.fuel_stored) + "/" + str(g.player_fuel_capacity) + " L"
-	if lbl_price != null:
-		lbl_price.text = "Price: " + str(int(s.fuel_price)) + " R/L"
-	if lbl_time != null:
-		var h = int(s.game_time) % 24
-		lbl_time.text = "Time: " + str(h) + ":00"
-	if lbl_revenue != null:
-		lbl_revenue.text = "Revenue: " + str(s.revenue) + " R"
-	if lbl_fuel_sold != null:
-		lbl_fuel_sold.text = "Sold: " + str(s.fuel_sold) + " L"
+	_update_live()
 
 # ==================== UPGRADE SHOP ====================
 
