@@ -348,6 +348,12 @@ func show_gameplay(boot_node):
 	lbl_cash = _lbl("Cash: " + cash_str + " R", 700, 15, 360, 40, 22, Color(0.7, 0.9, 0.7), false)
 	boot.add_child(lbl_cash)
 	_draw_map(s)
+	# Map legend
+	var lg = _get_gs()
+	var d_name = ""
+	if lg != null:
+		d_name = lg.district_names.get(current_district_id, "")
+	boot.add_child(_lbl("Green=YOU  Red=Enemy  Gray=Road  Brown=Building", 40, 470, 1000, 25, 14, Color(0.5, 0.5, 0.5), false))
 	var py = 500
 	boot.add_child(_lbl("-- Fuel Station --", 40, py, 1000, 30, 20, Color(0.5, 0.5, 0.6)))
 	var fuel_str = "0"
@@ -407,8 +413,8 @@ func _draw_map(s):
 	if s != null:
 		gs_val = s.grid_size
 		mt = s.map_tiles
-	var tw = 50
-	var th = 25
+	var tw = 36
+	var th = 18
 	var ox = 540
 	var oy = 80
 	var g = _get_gs()
@@ -421,29 +427,47 @@ func _draw_map(s):
 			if mt.size() > iy and mt[iy].size() > ix:
 				tt = mt[iy][ix]
 			var c = dc
+			var border = Color(dc.r * 0.5, dc.g * 0.5, dc.b * 0.5)
 			if tt == 1:
 				c = Color(dc.r + 0.12, dc.g + 0.12, dc.b + 0.1)
+				border = Color(c.r * 0.6, c.g * 0.6, c.b * 0.6)
 			elif tt == 2:
 				c = Color(dc.r + 0.2, dc.g + 0.15, dc.b + 0.08)
+				border = Color(c.r * 0.6, c.g * 0.6, c.b * 0.6)
 			elif tt == 3:
 				c = Color(0.15, 0.25, 0.4)
+				border = Color(0.1, 0.15, 0.25)
 			elif tt == 4:
 				c = Color(0.15, 0.35, 0.2)
+				border = Color(0.1, 0.2, 0.12)
 			elif tt == 5:
 				c = Color(0.2, 0.7, 0.25)
+				border = Color(0.15, 0.5, 0.18)
 			elif tt == 6:
 				c = Color(0.8, 0.2, 0.2)
+				border = Color(0.5, 0.12, 0.12)
 			var sx = ox + (ix - iy) * tw
 			var sy = oy + (ix + iy) * th
-			var p = Polygon2D.new()
-			p.polygon = PackedVector2Array([Vector2(0, -th), Vector2(tw, 0), Vector2(0, th), Vector2(-tw, 0)])
-			p.color = c
-			p.position = Vector2(sx, sy)
-			boot.add_child(p)
+			# Diamond tile using 4 small ColorRects forming a diamond
+			# Top triangle
+			var t1 = ColorRect.new()
+			t1.color = c
+			t1.position = Vector2(sx - tw / 2, sy)
+			t1.size = Vector2(tw, th / 2)
+			t1.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			boot.add_child(t1)
+			# Bottom triangle (slightly darker for depth)
+			var t2 = ColorRect.new()
+			t2.color = Color(c.r * 0.85, c.g * 0.85, c.b * 0.85)
+			t2.position = Vector2(sx - tw / 2, sy + th / 2)
+			t2.size = Vector2(tw, th / 2)
+			t2.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			boot.add_child(t2)
+			# Label for special tiles
 			if tt == 5:
-				boot.add_child(_lbl("YOU", sx - tw, sy - th, tw * 2, th * 2, 12, Color(1, 1, 1)))
+				boot.add_child(_lbl("YOU", sx - tw, sy - 4, tw * 2, th, 10, Color(1, 1, 1)))
 			elif tt == 6:
-				boot.add_child(_lbl("!", sx - tw, sy - th, tw * 2, th * 2, 14, Color(1, 0.8, 0.3)))
+				boot.add_child(_lbl("!", sx - tw, sy - 4, tw * 2, th, 12, Color(1, 0.8, 0.3)))
 
 func _on_back():
 	var s = _get_sim()
