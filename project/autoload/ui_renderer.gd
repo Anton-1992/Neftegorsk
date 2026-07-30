@@ -1,4 +1,4 @@
-## UIRenderer.gd — v29: force landscape + diagnostics
+## UIRenderer.gd — v30: title screen + settings + achievements
 extends Node
 
 var boot = null
@@ -7,7 +7,7 @@ var gs = null
 var sim = null
 var current_district_id = ""
 var current_level_num = 0
-var current_screen = "main_menu"
+var current_screen = "title"
 var ui_timer = 0.0
 var car_timer = 0.0
 var my_map = []
@@ -24,7 +24,11 @@ var my_sold = 0
 var my_in_game = false
 var player_pos = Vector2i(0, 0)
 
-# Screen dimensions — landscape
+# Settings
+var music_on = true
+var sound_on = true
+
+# Screen dimensions
 var SW = 1920
 var SH = 1080
 
@@ -193,7 +197,6 @@ func _make_label(cx, cy, text, fs, color):
 
 func _process(delta):
 	_update_screen_size()
-	# Force landscape every frame
 	DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR_LANDSCAPE)
 	if current_screen != "gameplay" or not my_in_game:
 		return
@@ -404,33 +407,184 @@ func _refresh_labels():
 				t += opp.name + " Price:" + str(int(opp.price)) + "R  "
 		lbl_opp.text = t
 
-# ==================== MAIN MENU (LANDSCAPE) ====================
+# ==================== TITLE SCREEN ====================
 
 func show_main_menu(boot_node):
 	boot = boot_node
 	_load_font()
 	_update_screen_size()
 	_clear()
-	current_screen = "main_menu"
-	boot.add_child(_bg())
-	boot.add_child(_lbl("NEFTEGORSK", 0, 20, SW, 70, 52, Color(1, 0.9, 0.3)))
-	boot.add_child(_lbl("v29 Landscape", 0, 80, SW, 24, 16, Color(0.5, 0.5, 0.6)))
+	current_screen = "title"
+	# Dark background with slight gradient
+	boot.add_child(_bg(Color(0.04, 0.05, 0.09)))
+	# Decorative top bar
+	var top_bar = ColorRect.new()
+	top_bar.color = Color(0.08, 0.10, 0.18)
+	top_bar.position = Vector2(0, 0)
+	top_bar.size = Vector2(SW, 60)
+	top_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	boot.add_child(top_bar)
+	# Settings button — top-left gear icon (text "[...]" since emoji broken)
+	boot.add_child(_btn("[...]", 15, 8, 130, 44, Color(0.12, 0.14, 0.22), 22, _show_settings))
+	# Achievements button — top-right
+	boot.add_child(_btn("[*]", SW - 145, 8, 130, 44, Color(0.18, 0.14, 0.08), 22, _show_achievements))
+	# Title
+	boot.add_child(_lbl("NEFTEGORSK", 0, 120, SW, 100, 72, Color(1, 0.85, 0.2)))
+	boot.add_child(_lbl("Fuel Empire", 0, 210, SW, 40, 28, Color(0.6, 0.6, 0.7)))
+	# Big PLAY button — center of screen
+	var play_w = 400
+	var play_h = 100
+	var play_x = (SW - play_w) / 2
+	var play_y = SH / 2 - 30
+	boot.add_child(_btn("PLAY", play_x, play_y, play_w, play_h, Color(0.12, 0.45, 0.18), 48, _show_district_select))
+	# Stats below play button
 	var g = _get_gs()
 	var cash_str = "0"
 	var stars_str = "0"
 	if g != null:
 		cash_str = str(g.cash)
 		stars_str = str(g.total_stars)
-	# Two columns layout for districts
+	boot.add_child(_lbl("Money: " + cash_str + " R  |  Stars: " + stars_str, 0, play_y + play_h + 30, SW, 30, 20, Color(0.5, 0.5, 0.6)))
+	# Version
+	boot.add_child(_lbl("v30", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
+
+# ==================== SETTINGS ====================
+
+func _show_settings():
+	_clear()
+	_update_screen_size()
+	current_screen = "settings"
+	boot.add_child(_bg(Color(0.04, 0.05, 0.09)))
+	var cx = (SW - 600) / 2
+	var cy = 100
+	boot.add_child(_btn("<< Back", cx, 20, 180, 45, Color(0.2, 0.25, 0.3), 22, show_main_menu.bind(boot)))
+	boot.add_child(_lbl("Settings", cx + 200, 20, 400, 50, 38, Color(1, 0.9, 0.3)))
+	# Music
+	var music_text = "Music: ON"
+	var music_color = Color(0.12, 0.3, 0.15)
+	if not music_on:
+		music_text = "Music: OFF"
+		music_color = Color(0.3, 0.12, 0.12)
+	boot.add_child(_btn(music_text, cx, cy, 600, 60, music_color, 24, _toggle_music))
+	cy += 80
+	# Sound
+	var sound_text = "Sound: ON"
+	var sound_color = Color(0.12, 0.3, 0.15)
+	if not sound_on:
+		sound_text = "Sound: OFF"
+		sound_color = Color(0.3, 0.12, 0.12)
+	boot.add_child(_btn(sound_text, cx, cy, 600, 60, sound_color, 24, _toggle_sound))
+	cy += 100
+	# Save
+	boot.add_child(_btn("Save Game", cx, cy, 600, 60, Color(0.12, 0.18, 0.12), 24, _on_save))
+	cy += 80
+	# Reset
+	boot.add_child(_btn("Reset Progress", cx, cy, 600, 60, Color(0.35, 0.1, 0.1), 24, _on_reset))
+	cy += 100
+	boot.add_child(_lbl("All progress will be lost on reset!", cx, cy, 600, 30, 16, Color(0.6, 0.4, 0.4)))
+
+func _toggle_music():
+	music_on = not music_on
+	_show_settings()
+
+func _toggle_sound():
+	sound_on = not sound_on
+	_show_settings()
+
+func _on_save():
+	var g = _get_gs()
+	if g != null:
+		g.save_game()
+
+func _on_reset():
+	var g = _get_gs()
+	if g != null:
+		g.cash = 50000
+		g.total_stars = 0
+		g.completed_levels = {}
+		g.unlocked_districts = [StringName("business_center")]
+		g.owned_upgrades = []
+		g.apply_upgrades()
+		g.save_game()
+	show_main_menu(boot)
+
+# ==================== ACHIEVEMENTS ====================
+
+func _show_achievements():
+	_clear()
+	_update_screen_size()
+	current_screen = "achievements"
+	boot.add_child(_bg(Color(0.04, 0.05, 0.09)))
+	var cx = (SW - 700) / 2
+	boot.add_child(_btn("<< Back", cx, 20, 180, 45, Color(0.2, 0.25, 0.3), 22, show_main_menu.bind(boot)))
+	boot.add_child(_lbl("Achievements", cx + 200, 20, 500, 50, 38, Color(1, 0.9, 0.3)))
+	var g = _get_gs()
+	if g == null:
+		boot.add_child(_lbl("GameState not available!", cx, 100, 700, 40, 24, Color(1, 0.3, 0.3)))
+		return
+	var y = 100
+	# Total stats
+	boot.add_child(_lbl("Total Stars: " + str(g.total_stars), cx, y, 700, 30, 24, Color(1, 0.9, 0.3), false))
+	y += 40
+	boot.add_child(_lbl("Cash: " + str(g.cash) + " R", cx, y, 700, 30, 24, Color(0.7, 0.9, 0.7), false))
+	y += 40
+	# Count completed levels
+	var total_done = 0
+	var total_levels = 0
+	for key in g.completed_levels:
+		if g.completed_levels[key] > 0:
+			total_done += 1
+	for d_id in g.district_levels_count:
+		total_levels += g.district_levels_count[d_id]
+	boot.add_child(_lbl("Levels Completed: " + str(total_done) + " / " + str(total_levels), cx, y, 700, 30, 24, Color(0.6, 0.8, 1.0), false))
+	y += 40
+	var unlocked_count = g.unlocked_districts.size()
+	boot.add_child(_lbl("Districts Unlocked: " + str(unlocked_count) + " / 10", cx, y, 700, 30, 24, Color(0.8, 0.7, 0.9), false))
+	y += 40
+	boot.add_child(_lbl("Upgrades Owned: " + str(g.owned_upgrades.size()), cx, y, 700, 30, 24, Color(0.7, 0.9, 0.7), false))
+	y += 60
+	# Per-district progress
+	boot.add_child(_lbl("-- District Progress --", cx, y, 700, 30, 22, Color(0.6, 0.6, 0.7)))
+	y += 35
+	var order = ["business_center", "historic", "residential", "industrial", "waterfront", "suburban", "port", "airport", "university", "tourist"]
+	for d_id in order:
+		var d_name = g.district_names.get(d_id, d_id)
+		var lc = g.district_levels_count.get(d_id, 0)
+		var done = 0
+		for i in range(1, lc + 1):
+			var key = d_id + "_" + str(i)
+			if g.completed_levels.has(key) and g.completed_levels[key] > 0:
+				done += 1
+		var unlocked = g.is_district_unlocked(d_id)
+		var status = str(done) + "/" + str(lc)
+		if not unlocked:
+			status = "LOCKED"
+		boot.add_child(_lbl(d_name + ":  " + status, cx, y, 700, 26, 20, Color(0.7, 0.7, 0.8), false))
+		y += 30
+
+# ==================== DISTRICT SELECT ====================
+
+func _show_district_select():
+	_clear()
+	_update_screen_size()
+	current_screen = "district_select"
+	boot.add_child(_bg())
+	boot.add_child(_btn("<< Back", 20, 20, 180, 45, Color(0.2, 0.25, 0.3), 22, show_main_menu.bind(boot)))
+	boot.add_child(_lbl("Select District", 220, 20, SW - 440, 50, 38, Color(1, 0.9, 0.3)))
+	var g = _get_gs()
+	var cash_str = "0"
+	var stars_str = "0"
+	if g != null:
+		cash_str = str(g.cash)
+		stars_str = str(g.total_stars)
 	var col_w = SW / 2 - 40
 	var left_x = 20
 	var right_x = SW / 2 + 20
-	boot.add_child(_lbl("Money: " + cash_str + " R", left_x, 108, col_w / 2, 30, 20, Color(0.7, 0.9, 0.7), false))
-	boot.add_child(_lbl("Stars: " + stars_str, left_x + col_w / 2, 108, col_w / 2, 30, 20, Color(1, 0.9, 0.3), false))
-	boot.add_child(_lbl("Select District:", left_x, 140, col_w, 30, 20, Color(0.7, 0.7, 0.8), false))
+	boot.add_child(_lbl("Money: " + cash_str + " R", left_x, 80, col_w / 2, 30, 20, Color(0.7, 0.9, 0.7), false))
+	boot.add_child(_lbl("Stars: " + stars_str, left_x + col_w / 2, 80, col_w / 2, 30, 20, Color(1, 0.9, 0.3), false))
 	var order = ["business_center", "historic", "residential", "industrial", "waterfront", "suburban", "port", "airport", "university", "tourist"]
-	var y_left = 170
-	var y_right = 170
+	var y_left = 115
+	var y_right = 115
 	var col = 0
 	for d_id in order:
 		if g == null:
@@ -463,31 +617,12 @@ func show_main_menu(boot_node):
 	var max_y = max(y_left, y_right)
 	max_y += 15
 	boot.add_child(_btn("Upgrade Shop", left_x, max_y, col_w, 50, Color(0.15, 0.12, 0.25), 22, _show_upgrade_shop))
-	boot.add_child(_btn("Save Game", right_x, max_y, col_w / 2 - 10, 50, Color(0.12, 0.18, 0.12), 20, _on_save))
-	boot.add_child(_btn("Reset", right_x + col_w / 2 + 10, max_y, col_w / 2 - 10, 50, Color(0.25, 0.1, 0.1), 20, _on_reset))
 
 func _on_district(d_id):
 	current_district_id = d_id
 	_show_level_select()
 
-func _on_save():
-	var g = _get_gs()
-	if g != null:
-		g.save_game()
-
-func _on_reset():
-	var g = _get_gs()
-	if g != null:
-		g.cash = 50000
-		g.total_stars = 0
-		g.completed_levels = {}
-		g.unlocked_districts = [StringName("business_center")]
-		g.owned_upgrades = []
-		g.apply_upgrades()
-		g.save_game()
-	show_main_menu(boot)
-
-# ==================== LEVEL SELECT (LANDSCAPE) ====================
+# ==================== LEVEL SELECT ====================
 
 func _show_level_select():
 	_clear()
@@ -504,7 +639,7 @@ func _show_level_select():
 		dc = g.district_colors.get(current_district_id, dc)
 	var content_w = min(SW - 40, 1000)
 	var cx = (SW - content_w) / 2
-	boot.add_child(_btn("<< Back", cx, 20, 180, 45, Color(0.2, 0.25, 0.3), 22, show_main_menu.bind(boot)))
+	boot.add_child(_btn("<< Back", cx, 20, 180, 45, Color(0.2, 0.25, 0.3), 22, _show_district_select))
 	boot.add_child(_lbl(d_name, cx + 200, 20, content_w - 200, 50, 38, Color(1, 0.9, 0.3)))
 	var y = 120
 	for i in range(1, lc + 1):
@@ -536,6 +671,8 @@ func _on_level(num):
 	current_level_num = num
 	_gen_map()
 	show_gameplay(boot)
+
+# ==================== MAP GENERATION ====================
 
 func _gen_map():
 	var g = _get_gs()
@@ -631,7 +768,7 @@ func _gen_map():
 		s.current_district = current_district_id
 		s.current_level_num = current_level_num
 
-# ==================== ISOMETRIC GAMEPLAY (LANDSCAPE) ====================
+# ==================== ISOMETRIC GAMEPLAY ====================
 
 func show_gameplay(boot_node):
 	boot = boot_node
@@ -642,13 +779,10 @@ func show_gameplay(boot_node):
 	var g = _get_gs()
 	var sz = my_grid
 
-	# LAYOUT: map on left, controls on right
-	# Map area: 60% of screen width
 	var panel_w = 380
 	var map_area_w = SW - panel_w - 20
 	var map_area_h = SH - 20
 
-	# Calculate tile size to fit map area
 	TW = int(map_area_w / sz)
 	TH = TW / 2
 	var total_map_h = sz * TH + BLOCK_H + 20
@@ -660,13 +794,11 @@ func show_gameplay(boot_node):
 
 	boot.add_child(_bg(Color(0.02, 0.03, 0.06)))
 
-	# ---- ISOMETRIC MAP (left side) ----
 	var map_w = sz * TW
 	var map_h = sz * TH + BLOCK_H + 20
 	var map_x = 10
 	var map_y = (SH - map_h) / 2
 
-	# Border
 	var brd = ColorRect.new()
 	brd.color = Color(0.1, 0.1, 0.15)
 	brd.position = Vector2(map_x - 4, map_y - 4)
@@ -674,35 +806,29 @@ func show_gameplay(boot_node):
 	brd.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	boot.add_child(brd)
 
-	# SubViewportContainer
 	var svc = SubViewportContainer.new()
 	svc.position = Vector2(map_x, map_y)
 	svc.size = Vector2(map_w, map_h)
 	svc.stretch = true
 	boot.add_child(svc)
 
-	# SubViewport
 	var svp = SubViewport.new()
 	svp.size = Vector2(map_w, map_h)
 	svp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	svc.add_child(svp)
 	map_svp = svp
 
-	# Map root Node2D
 	var root = Node2D.new()
 	svp.add_child(root)
 	map_node = root
 
-	# Center of isometric grid
 	var mcx = map_w / 2
 	var mcy = TH
 
-	# District color
 	var dc = Color(0.2, 0.2, 0.3)
 	if g != null:
 		dc = g.district_colors.get(current_district_id, dc)
 
-	# Draw tiles back-to-front
 	for depth in range(0, sz * 2):
 		for gx in range(0, sz):
 			var gy = depth - gx
@@ -764,7 +890,6 @@ func show_gameplay(boot_node):
 	var py = 10
 	var pw = panel_w - 20
 
-	# Back + title
 	boot.add_child(_btn("<< Back", px, py, 120, 36, Color(0.25, 0.15, 0.15), 18, _on_back))
 	var d_name = ""
 	if g != null:
@@ -775,7 +900,6 @@ func show_gameplay(boot_node):
 	boot.add_child(lbl_cash)
 	py += 34
 
-	# Fuel section
 	boot.add_child(_lbl("-- Fuel Station --", px, py, pw, 24, 16, Color(0.5, 0.5, 0.6)))
 	py += 26
 	lbl_fuel = _lbl("Fuel: " + str(my_fuel) + "/" + str(my_capacity) + " L", px, py, pw, 24, 16, Color(0.6, 0.8, 1.0), false)
@@ -793,7 +917,6 @@ func show_gameplay(boot_node):
 	boot.add_child(_btn("Buy MAX Fuel", px, py, pw, 40, Color(0.1, 0.15, 0.2), 16, _on_buy_max))
 	py += 48
 
-	# Time/status
 	lbl_time = _lbl("Time: 8:00", px, py, pw / 3, 24, 16, Color(0.5, 0.5, 0.6), false)
 	boot.add_child(lbl_time)
 	lbl_revenue = _lbl("Rev: 0R", px + pw / 3, py, pw / 3, 24, 16, Color(0.7, 0.9, 0.7), false)
@@ -808,7 +931,6 @@ func show_gameplay(boot_node):
 	boot.add_child(lbl_status)
 	py += 30
 
-	# Opponents
 	boot.add_child(_lbl("-- Opponents --", px, py, pw, 24, 16, Color(0.5, 0.5, 0.6)))
 	py += 26
 	lbl_opp = _lbl("", px, py, pw, 24, 14, Color(0.9, 0.6, 0.3), false)
@@ -824,7 +946,7 @@ func show_gameplay(boot_node):
 	py += 10
 	boot.add_child(_btn("Upgrade Shop", px, py, pw, 44, Color(0.12, 0.12, 0.2), 18, _show_upgrade_shop))
 	py += 50
-	boot.add_child(_lbl("P=You E=Enemy B=Building Road=Gray | Map:" + str(my_grid) + "x" + str(my_grid) + " Tiles:" + str(my_grid * my_grid), px, py, pw, 20, 12, Color(0.4, 0.4, 0.4), false))
+	boot.add_child(_lbl("P=You E=Enemy B=Building Road=Gray", px, py, pw, 20, 12, Color(0.4, 0.4, 0.4), false))
 
 func _on_back():
 	my_in_game = false
@@ -924,7 +1046,7 @@ func _on_buyout(opp_id):
 func update_gameplay_ui():
 	_refresh_labels()
 
-# ==================== UPGRADE SHOP (LANDSCAPE) ====================
+# ==================== UPGRADE SHOP ====================
 
 func _show_upgrade_shop():
 	_clear()
@@ -992,9 +1114,9 @@ func _on_shop_back():
 	if current_screen == "gameplay":
 		show_gameplay(boot)
 	else:
-		show_main_menu(boot)
+		_show_district_select()
 
-# ==================== WIN/LOSE (LANDSCAPE) ====================
+# ==================== WIN/LOSE ====================
 
 func show_result(won, stars, stars_gained):
 	_clear()
