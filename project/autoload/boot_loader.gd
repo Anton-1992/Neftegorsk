@@ -1,4 +1,4 @@
-## BootLoader.gd — v25: 9 autoloads (8 + UIRenderer)
+## BootLoader.gd — v26: 9 autoloads, centered UI
 extends Control
 
 var font = null
@@ -16,14 +16,25 @@ func _ready():
 
 func _show_diag():
 	_clear_children()
+	var sw = 1080
+	var sh = 1920
+	var vp = get_viewport()
+	if vp != null:
+		var rect = vp.get_visible_rect()
+		sw = int(rect.size.x)
+		sh = int(rect.size.y)
+	if sw < 100:
+		sw = 1080
+	if sh < 100:
+		sh = 1920
 	var bg = ColorRect.new()
 	bg.color = Color(0.06, 0.08, 0.12)
 	bg.position = Vector2(0, 0)
-	bg.size = Vector2(1080, 1920)
+	bg.size = Vector2(sw, sh)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bg)
 	var autoloads = ["GameState", "GameManager", "LevelManager", "EconomyManager", "UpgradeManager", "SaveManager", "AudioManager", "Simulation", "UIRenderer"]
-	var diag_text = "NEFTEGORSK v25\n9 autoloads\n\n"
+	var diag_text = "NEFTEGORSK v26\n9 autoloads\n\n"
 	var ok_count = 0
 	for name in autoloads:
 		var node = get_node_or_null("/root/" + name)
@@ -42,7 +53,7 @@ func _show_diag():
 	var lbl = Label.new()
 	lbl.text = diag_text
 	lbl.position = Vector2(40, 100)
-	lbl.size = Vector2(1000, 1200)
+	lbl.size = Vector2(sw - 80, 1200)
 	lbl.add_theme_font_size_override("font_size", 24)
 	lbl.add_theme_color_override("font_color", Color(1, 0.9, 0.3))
 	if font != null:
