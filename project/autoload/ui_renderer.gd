@@ -198,11 +198,134 @@ func _show_level_select():
 
 func _on_level(num):
 	current_level_num = num
+	_init_sim()
+	show_gameplay(boot)
+
+func _init_sim():
 	var s = _get_sim()
-	if s != null:
-		s.start_level(current_district_id, current_level_num, boot)
-	else:
-		show_gameplay(boot)
+	if s == null:
+		return
+	var g = _get_gs()
+	if g != null:
+		g.apply_upgrades()
+		s.grid_size = g.district_grid_sizes.get(current_district_id, 8)
+		s.fuel_price = 50.0
+		s.fuel_stored = g.player_fuel_capacity
+		s.player_pumps = g.player_pumps
+		s.revenue = 0
+		s.fuel_sold = 0
+		s.game_time = 8.0
+		s.sales_timer = 0.0
+		s.cost_timer = 0.0
+		s.ai_timer = 0.0
+		s.level_start_cash = g.cash
+		s.level_start_real_time = Time.get_unix_time_from_system()
+		s.buyout_confirm_id = -1
+		s.current_district = current_district_id
+		s.current_level_num = current_level_num
+	s.in_game = false
+	# Generate map safely
+	s.map_tiles = []
+	s.opponents = []
+	var rng = RandomNumberGenerator.new()
+	rng.seed = current_level_num * 12345 + current_district_id.hash()
+	var sz = s.grid_size
+	for y in range(sz):
+		var row = []
+		for x in range(sz):
+			row.append(0)
+		s.map_tiles.append(row)
+	# Roads
+	var h_count = 2
+	if current_level_num > 2:
+		h_count = 3
+	for i in range(h_count):
+		var ry = rng.randi_range(1, sz - 2)
+		for x in range(sz):
+			s.map_tiles[ry][x] = 1
+	for i in range(h_count):
+		var rx = rng.randi_range(1, sz - 2)
+		for y in range(sz):
+			s.map_tiles[y][rx] = 1
+	# Buildings near roads
+	for y in range(sz):
+		for x in range(sz):
+			if s.map_tiles[y][x] == 0:
+				var near = false
+				for dy in range(-1, 2):
+					for dx in range(-1, 2):
+						var ny = y + dy
+						var nx = x + dx
+						if ny >= 0 and ny < sz and nx >= 0 and nx < sz and s.map_tiles[ny][nx] == 1:
+							near = true
+				if near and rng.randf() < 0.55:
+					s.map_tiles[y][x] = 2
+	# Player station at center
+	var px = sz / 2
+	var py = sz / 2
+	for y in range(sz):
+		for x in range(sz):
+			if s.map_tiles[y][x] == 1 and abs(x - sz / 2) <= 2 and abs(y - sz / 2) <= 2:
+				px = x
+				py = y
+	s.map_tiles[py][px] = 5
+	# Opponents
+	var opp_count = min(current_level_num, 3)
+	var archetypes = ["shark", "miser", "opportunist"]
+	var arch_names = {"shark": "Akula", "miser": "Skupoy", "opportunist": "Opportunist"}
+	var arch_colors = {"shark": Color(0.9, 0.2, 0.2), "miser": Color(0.9, 0.75, 0.2), "opportunist": Color(0.4, 0.4, 0.9)}
+	for i in range(opp_count):
+		var placed = false
+		for attempt in range(30):
+			var ox = rng.randi_range(1, sz - 2)
+			var oy = rng.randi_range(1, sz - 2)
+			if s.map_tiles[oy][ox] == 1 and (abs(ox - px) + abs(oy - py)) >= 3:
+				s.map_tiles[oy][ox] = 6
+				var arch = archetypes[i % 3]
+				var opp_name = "Opponent"
+				var opp_price = 42.5 * 1.15
+				var opp_loyalty = 1.0
+				var opp_aggression = 1.0
+				var opp_change_freq = 0.6
+				var opp_margin = 0.15
+				if arch == "shark":
+					opp_name = "Akula"
+					opp_price = 42.5 * 1.12
+					opp_loyalty = 0.7
+					opp_aggression = 1.8
+					opp_change_freq = 0.8
+					opp_margin = 0.12
+				elif arch == "miser":
+					opp_name = "Skupoy"
+					opp_price = 42.5 * 1.25
+					opp_loyalty = 1.8
+					opp_aggression = 0.4
+					opp_change_freq = 0.2
+					opp_margin = 0.25
+				else:
+					opp_name = "Opportunist"
+					opp_price = 42.5 * 1.15
+					opp_loyalty = 1.0
+					opp_aggression = 1.0
+					opp_change_freq = 0.6
+					opp_margin = 0.15
+				s.opponents.append({
+					"id": i,
+					"archetype": arch,
+					"name": opp_name,
+					"pos": Vector2i(ox, oy),
+					"price": opp_price,
+					"cash": 30000 + current_level_num * 10000,
+					"loyalty": opp_loyalty,
+					"stations_count": 1,
+					"color": arch_colors[arch],
+					"aggression": opp_aggression,
+					"change_freq": opp_change_freq,
+					"margin": opp_margin,
+				})
+				placed = true
+				break
+	s.in_game = true
 
 # ==================== GAMEPLAY ====================
 
@@ -513,8 +636,5 @@ func show_result(won, stars, stars_gained):
 	boot.add_child(_btn("Retry Level", 290, 580, 500, 60, Color(0.2, 0.15, 0.1), 26, _on_retry))
 
 func _on_retry():
-	var s = _get_sim()
-	if s != null:
-		s.start_level(current_district_id, current_level_num, boot)
-	else:
-		show_gameplay(boot)
+	_init_sim()
+	show_gameplay(boot)
