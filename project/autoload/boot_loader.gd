@@ -34,7 +34,7 @@ func _show_diag():
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bg)
 	var autoloads = ["GameState", "GameManager", "LevelManager", "EconomyManager", "UpgradeManager", "SaveManager", "AudioManager", "Simulation", "UIRenderer"]
-	var diag_text = "NEFTEGORSK v26\n9 autoloads\n\n"
+	var diag_text = "NEFTEGORSK v27\n9 autoloads\n\n"
 	var ok_count = 0
 	for name in autoloads:
 		var node = get_node_or_null("/root/" + name)

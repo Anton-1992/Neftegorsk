@@ -1,4 +1,4 @@
-## UIRenderer.gd — v26: stretch mode + dynamic centering
+## UIRenderer.gd — v27: isometric view + animated cars
 extends Node
 
 var boot = null
@@ -9,6 +9,7 @@ var current_district_id = ""
 var current_level_num = 0
 var current_screen = "main_menu"
 var ui_timer = 0.0
+var car_timer = 0.0
 var my_map = []
 var my_opponents = []
 var my_grid = 8
@@ -21,6 +22,21 @@ var my_time = 8.0
 var my_revenue = 0
 var my_sold = 0
 var my_in_game = false
+var player_pos = Vector2i(0, 0)
+
+# Screen dimensions
+var SW = 1080
+var SH = 1920
+
+# Isometric map references
+var map_node = null
+var map_svp = null
+var cars = []
+
+# Isometric tile size
+var TW = 64
+var TH = 32
+var BLOCK_H = 20
 
 var lbl_cash = null
 var lbl_fuel = null
@@ -31,10 +47,6 @@ var lbl_status = null
 var lbl_opp = null
 var lbl_revenue = null
 var lbl_fuel_sold = null
-
-# Screen dimensions — updated each frame
-var SW = 1080
-var SH = 1920
 
 func _get_gs():
 	if gs == null:
@@ -51,7 +63,6 @@ func _load_font():
 		font = ResourceLoader.load("res://assets/fonts/DejaVuSans.ttf")
 
 func _update_screen_size():
-	# Get actual viewport size — works with stretch mode
 	var vp = get_viewport()
 	if vp != null:
 		var rect = vp.get_visible_rect()
@@ -69,6 +80,9 @@ func _clear():
 	for c in ch:
 		boot.remove_child(c)
 		c.free()
+	map_node = null
+	map_svp = null
+	cars = []
 
 func _btn(text, x, y, w, h, color, fs, cb, arg = null):
 	var b = Button.new()
@@ -118,16 +132,215 @@ func _bg(color = Color(0.06, 0.08, 0.12)):
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return bg
 
+# ==================== ISOMETRIC HELPERS ====================
+
+func _iso_to_screen(gx, gy, cx, cy):
+	# Convert grid coords to isometric screen coords
+	var sx = cx + (gx - gy) * TW / 2
+	var sy = cy + (gx + gy) * TH / 2
+	return Vector2(sx, sy)
+
+func _make_diamond(cx, cy, w, h, color):
+	var p = Polygon2D.new()
+	var verts = PackedVector2Array()
+	verts.append(Vector2(0, -h / 2))
+	verts.append(Vector2(w / 2, 0))
+	verts.append(Vector2(0, h / 2))
+	verts.append(Vector2(-w / 2, 0))
+	p.polygon = verts
+	p.color = color
+	p.position = Vector2(cx, cy)
+	return p
+
+func _make_left_face(cx, cy, w, h, bh, color):
+	var p = Polygon2D.new()
+	var verts = PackedVector2Array()
+	verts.append(Vector2(-w / 2, 0))
+	verts.append(Vector2(0, h / 2))
+	verts.append(Vector2(0, h / 2 + bh))
+	verts.append(Vector2(-w / 2, bh))
+	p.polygon = verts
+	p.color = color
+	p.position = Vector2(cx, cy)
+	return p
+
+func _make_right_face(cx, cy, w, h, bh, color):
+	var p = Polygon2D.new()
+	var verts = PackedVector2Array()
+	verts.append(Vector2(w / 2, 0))
+	verts.append(Vector2(0, h / 2))
+	verts.append(Vector2(0, h / 2 + bh))
+	verts.append(Vector2(w / 2, bh))
+	p.polygon = verts
+	p.color = color
+	p.position = Vector2(cx, cy)
+	return p
+
+func _make_label(cx, cy, text, fs, color):
+	var l = Label.new()
+	l.text = text
+	l.position = Vector2(cx - 20, cy - fs / 2)
+	l.size = Vector2(40, fs + 4)
+	l.add_theme_font_size_override("font_size", fs)
+	l.add_theme_color_override("font_color", color)
+	l.horizontal_alignment = 1
+	l.vertical_alignment = 1
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if font != null:
+		l.add_theme_font_override("font", font)
+	return l
+
+# ==================== PROCESS ====================
+
 func _process(delta):
 	_update_screen_size()
 	if current_screen != "gameplay" or not my_in_game:
 		return
 	ui_timer += delta
+	car_timer += delta
 	if ui_timer < 1.5:
+		_update_cars(delta)
 		return
 	ui_timer = 0.0
 	_sim_tick()
 	_refresh_labels()
+	_spawn_car()
+	_update_cars(delta)
+
+# ==================== CAR SYSTEM ====================
+
+func _find_road_path(start_x, start_y, end_x, end_y):
+	var sz = my_grid
+	if start_x < 0 or start_x >= sz or start_y < 0 or start_y >= sz:
+		return []
+	if end_x < 0 or end_x >= sz or end_y < 0 or end_y >= sz:
+		return []
+	var visited = {}
+	var queue = [[start_x, start_y, []]]
+	visited[str(start_x) + "," + str(start_y)] = true
+	var dirs = [[0, 1], [0, -1], [1, 0], [-1, 0]]
+	while queue.size() > 0:
+		var item = queue.pop_front()
+		var cx = item[0]
+		var cy = item[1]
+		var path = item[2]
+		var new_path = path.duplicate()
+		new_path.append(Vector2i(cx, cy))
+		if cx == end_x and cy == end_y:
+			return new_path
+		for d in dirs:
+			var nx = cx + d[0]
+			var ny = cy + d[1]
+			var key = str(nx) + "," + str(ny)
+			if nx >= 0 and nx < sz and ny >= 0 and ny < sz and not visited.has(key):
+				var tt = 0
+				if my_map.size() > ny and my_map[ny].size() > nx:
+					tt = my_map[ny][nx]
+				if tt == 1 or tt == 5 or tt == 6:
+					visited[key] = true
+					queue.append([nx, ny, new_path])
+	return []
+
+func _spawn_car():
+	if cars.size() >= 5:
+		return
+	if my_map.size() == 0:
+		return
+	var sz = my_grid
+	var edges = []
+	for x in range(sz):
+		if my_map.size() > 0 and my_map[0].size() > x and my_map[0][x] == 1:
+			edges.append(Vector2i(x, 0))
+		if my_map.size() > sz - 1 and my_map[sz - 1].size() > x and my_map[sz - 1][x] == 1:
+			edges.append(Vector2i(x, sz - 1))
+	for y in range(sz):
+		if my_map.size() > y and my_map[y].size() > 0 and my_map[y][0] == 1:
+			edges.append(Vector2i(0, y))
+		if my_map.size() > y and my_map[y].size() > sz - 1 and my_map[y][sz - 1] == 1:
+			edges.append(Vector2i(sz - 1, y))
+	if edges.size() == 0:
+		return
+	var edge = edges[randi() % edges.size()]
+	var path = _find_road_path(edge.x, edge.y, player_pos.x, player_pos.y)
+	if path.size() < 2:
+		return
+	var car_color = Color(0.9, 0.8, 0.2)
+	var r = randi() % 4
+	if r == 0:
+		car_color = Color(0.9, 0.3, 0.2)
+	elif r == 1:
+		car_color = Color(0.2, 0.5, 0.9)
+	elif r == 2:
+		car_color = Color(0.9, 0.9, 0.9)
+	elif r == 3:
+		car_color = Color(0.2, 0.8, 0.3)
+	cars.append({
+		"path": path,
+		"step": 0,
+		"t": 0.0,
+		"speed": 1.5 + randf() * 1.0,
+		"color": car_color,
+		"node": null,
+	})
+
+func _update_cars(delta):
+	if map_node == null:
+		return
+	for car in cars:
+		car.t += delta * car.speed
+		if car.t >= 1.0:
+			car.t = 0.0
+			car.step += 1
+		if car.step >= car.path.size() - 1:
+			# Car reached destination
+			if car.node != null:
+				map_node.remove_child(car.node)
+				car.node.free()
+				car.node = null
+			car.step = -1
+			continue
+		if car.step < 0:
+			continue
+		var from = car.path[car.step]
+		var to = car.path[car.step + 1]
+		var fx = from.x
+		var fy = from.y
+		var tx = to.x
+		var ty = to.y
+		var t = car.t
+		var gx = fx + (tx - fx) * t
+		var gy = fy + (ty - fy) * t
+		# Convert to isometric screen position
+		var map_w = my_grid * TW
+		var map_h = my_grid * TH
+		var mcx = map_w / 2
+		var mcy = TH
+		var spos = _iso_to_screen(gx, gy, mcx, mcy)
+		if car.node == null:
+			var p = Polygon2D.new()
+			var verts = PackedVector2Array()
+			verts.append(Vector2(-6, -3))
+			verts.append(Vector2(6, -3))
+			verts.append(Vector2(6, 3))
+			verts.append(Vector2(-6, 3))
+			p.polygon = verts
+			p.color = car.color
+			p.position = spos
+			map_node.add_child(p)
+			car.node = p
+		else:
+			car.node.position = spos
+	# Remove dead cars
+	var alive = []
+	for car in cars:
+		if car.step >= 0:
+			alive.append(car)
+		elif car.node != null:
+			map_node.remove_child(car.node)
+			car.node.free()
+	cars = alive
+
+# ==================== SIMULATION ====================
 
 func _sim_tick():
 	var g = _get_gs()
@@ -207,16 +420,14 @@ func show_main_menu(boot_node):
 	_clear()
 	current_screen = "main_menu"
 	boot.add_child(_bg())
-	# Centered title
 	boot.add_child(_lbl("NEFTEGORSK", 0, 30, SW, 80, 56, Color(1, 0.9, 0.3)))
-	boot.add_child(_lbl("v26", 0, 100, SW, 30, 18, Color(0.5, 0.5, 0.6)))
+	boot.add_child(_lbl("v27 Isometric", 0, 100, SW, 30, 18, Color(0.5, 0.5, 0.6)))
 	var g = _get_gs()
 	var cash_str = "0"
 	var stars_str = "0"
 	if g != null:
 		cash_str = str(g.cash)
 		stars_str = str(g.total_stars)
-	# Centered content area
 	var content_w = min(SW - 40, 1000)
 	var cx = (SW - content_w) / 2
 	boot.add_child(_lbl("Money: " + cash_str + " R", cx, 150, content_w / 2, 40, 22, Color(0.7, 0.9, 0.7), false))
@@ -339,6 +550,8 @@ func _gen_map():
 	my_sold = 0
 	my_in_game = true
 	ui_timer = 0.0
+	car_timer = 0.0
+	cars = []
 	var rng = RandomNumberGenerator.new()
 	rng.seed = current_level_num * 12345 + current_district_id.hash()
 	var sz = my_grid
@@ -380,6 +593,7 @@ func _gen_map():
 				py = y
 				break
 	my_map[py][px] = 5
+	player_pos = Vector2i(px, py)
 	my_opponents = []
 	var oc = min(current_level_num, 3)
 	var names = ["Akula", "Skupoy", "Opportunist"]
@@ -412,7 +626,7 @@ func _gen_map():
 		s.current_district = current_district_id
 		s.current_level_num = current_level_num
 
-# ==================== GAMEPLAY ====================
+# ==================== ISOMETRIC GAMEPLAY ====================
 
 func show_gameplay(boot_node):
 	boot = boot_node
@@ -422,104 +636,182 @@ func show_gameplay(boot_node):
 	current_screen = "gameplay"
 	var g = _get_gs()
 	var sz = my_grid
-	# Calculate tile size to fit screen — map centered horizontally
-	var max_map_w = SW - 40
-	var max_map_h = SH / 2 - 100
-	var ts = min(max_map_w / sz, max_map_h / sz)
-	ts = max(ts, 20)
-	var map_w = sz * ts
-	var map_h = sz * ts
-	var cx = (SW - map_w) / 2
-	var cy = 60
+
+	# Calculate tile size to fit screen
+	var map_area_w = SW - 40
+	var map_area_h = SH / 2 - 80
+	# Iso map bounding box: width = sz * TW, height = sz * TH + some block height
+	TW = int(map_area_w / sz)
+	TH = TW / 2
+	if sz * TH + BLOCK_H > map_area_h:
+		TH = int((map_area_h - BLOCK_H) / sz)
+		TW = TH * 2
+	TW = max(TW, 20)
+	TH = max(TH, 10)
+
 	boot.add_child(_bg(Color(0.02, 0.03, 0.06)))
-	# Top bar — centered
-	boot.add_child(_btn("<< Back", cx, cy, 120, 36, Color(0.25, 0.15, 0.15), 18, _on_back))
+
+	# Top bar
+	var content_w = min(SW - 40, 1000)
+	var cx = (SW - content_w) / 2
+	boot.add_child(_btn("<< Back", cx, 10, 120, 36, Color(0.25, 0.15, 0.15), 18, _on_back))
 	var d_name = ""
 	if g != null:
 		d_name = g.district_names.get(current_district_id, "")
-	boot.add_child(_lbl(d_name + " Lv." + str(current_level_num), cx + 130, cy, map_w - 260, 36, 22, Color(1, 0.9, 0.3)))
-	lbl_cash = _lbl("Cash:" + str(my_cash) + "R", cx + map_w - 200, cy, 200, 36, 18, Color(0.7, 0.9, 0.7), false)
+	boot.add_child(_lbl(d_name + " Lv." + str(current_level_num), cx + 130, 10, content_w - 260, 36, 22, Color(1, 0.9, 0.3)))
+	lbl_cash = _lbl("Cash:" + str(my_cash) + "R", cx + content_w - 200, 10, 200, 36, 18, Color(0.7, 0.9, 0.7), false)
 	boot.add_child(lbl_cash)
-	cy += 44
-	# Map border
+
+	# ---- ISOMETRIC MAP using SubViewportContainer ----
+	var map_w = sz * TW
+	var map_h = sz * TH + BLOCK_H + 20
+	var map_x = (SW - map_w) / 2
+	var map_y = 52
+
+	# Border
 	var brd = ColorRect.new()
-	brd.color = Color(0.15, 0.15, 0.2)
-	brd.position = Vector2(cx - 3, cy - 3)
-	brd.size = Vector2(map_w + 6, map_h + 6)
+	brd.color = Color(0.1, 0.1, 0.15)
+	brd.position = Vector2(map_x - 4, map_y - 4)
+	brd.size = Vector2(map_w + 8, map_h + 8)
 	brd.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	boot.add_child(brd)
-	# Map tiles — ColorRect (visible inside Control)
+
+	# SubViewportContainer
+	var svc = SubViewportContainer.new()
+	svc.position = Vector2(map_x, map_y)
+	svc.size = Vector2(map_w, map_h)
+	svc.stretch = true
+	boot.add_child(svc)
+
+	# SubViewport
+	var svp = SubViewport.new()
+	svp.size = Vector2(map_w, map_h)
+	svp.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
+	svc.add_child(svp)
+	map_svp = svp
+
+	# Map root Node2D
+	var root = Node2D.new()
+	svp.add_child(root)
+	map_node = root
+
+	# Center of isometric grid
+	var mcx = map_w / 2
+	var mcy = TH
+
+	# District color
 	var dc = Color(0.2, 0.2, 0.3)
 	if g != null:
 		dc = g.district_colors.get(current_district_id, dc)
-	for iy in range(sz):
-		for ix in range(sz):
+
+	# Draw tiles back-to-front (sorted by gx+gy)
+	for depth in range(0, sz * 2):
+		for gx in range(0, sz):
+			var gy = depth - gx
+			if gy < 0 or gy >= sz:
+				continue
 			var tt = 0
-			if my_map.size() > iy and my_map[iy].size() > ix:
-				tt = my_map[iy][ix]
-			var c = Color(dc.r * 0.5, dc.g * 0.5, dc.b * 0.5)
-			var txt = ""
-			var tc = Color(0.8, 0.8, 0.8)
+			if my_map.size() > gy and my_map[gy].size() > gx:
+				tt = my_map[gy][gx]
+			var spos = _iso_to_screen(gx, gy, mcx, mcy)
+
+			# Tile colors
+			var top_color = Color(dc.r * 0.4, dc.g * 0.4, dc.b * 0.4)
+			var left_color = Color(dc.r * 0.3, dc.g * 0.3, dc.b * 0.3)
+			var right_color = Color(dc.r * 0.25, dc.g * 0.25, dc.b * 0.25)
+			var bh = 0
+			var label_text = ""
+			var label_color = Color(0.8, 0.8, 0.8)
+
 			if tt == 0:
-				c = Color(dc.r * 0.4, dc.g * 0.4, dc.b * 0.4)
+				# Empty ground
+				top_color = Color(dc.r * 0.35, dc.g * 0.35, dc.b * 0.35)
+				left_color = Color(dc.r * 0.25, dc.g * 0.25, dc.b * 0.25)
+				right_color = Color(dc.r * 0.2, dc.g * 0.2, dc.b * 0.2)
+				bh = 2
 			elif tt == 1:
-				c = Color(0.35, 0.35, 0.4)
+				# Road
+				top_color = Color(0.35, 0.35, 0.4)
+				left_color = Color(0.25, 0.25, 0.3)
+				right_color = Color(0.2, 0.2, 0.25)
+				bh = 0
 			elif tt == 2:
-				c = Color(dc.r + 0.2, dc.g + 0.12, dc.b + 0.06)
-				txt = "B"
-				tc = Color(0.6, 0.5, 0.4)
+				# Building
+				top_color = Color(dc.r + 0.2, dc.g + 0.12, dc.b + 0.06)
+				left_color = Color(dc.r + 0.1, dc.g + 0.06, dc.b + 0.03)
+				right_color = Color(dc.r + 0.05, dc.g + 0.03, dc.b + 0.01)
+				bh = BLOCK_H
+				label_text = "B"
+				label_color = Color(0.6, 0.5, 0.4)
 			elif tt == 5:
-				c = Color(0.15, 0.65, 0.2)
-				txt = "P"
-				tc = Color(1, 1, 1)
+				# Player station
+				top_color = Color(0.15, 0.65, 0.2)
+				left_color = Color(0.1, 0.45, 0.15)
+				right_color = Color(0.08, 0.35, 0.12)
+				bh = BLOCK_H / 2
+				label_text = "P"
+				label_color = Color(1, 1, 1)
 			elif tt == 6:
-				c = Color(0.75, 0.15, 0.15)
-				txt = "E"
-				tc = Color(1, 1, 1)
-			var cr = ColorRect.new()
-			cr.color = c
-			cr.position = Vector2(cx + ix * ts, cy + iy * ts)
-			cr.size = Vector2(ts - 2, ts - 2)
-			cr.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			boot.add_child(cr)
-			if txt != "":
-				var tl = _lbl(txt, cx + ix * ts, cy + iy * ts, ts - 2, ts - 2, max(ts / 3, 10), tc)
-				boot.add_child(tl)
-	cy += map_h + 4
-	# Map legend — centered
-	boot.add_child(_lbl("P=You  E=Enemy  B=Building  Gray=Road", cx, cy, map_w, 22, 13, Color(0.5, 0.5, 0.5), false))
+				# Enemy station
+				top_color = Color(0.75, 0.15, 0.15)
+				left_color = Color(0.5, 0.1, 0.1)
+				right_color = Color(0.4, 0.08, 0.08)
+				bh = BLOCK_H / 2
+				label_text = "E"
+				label_color = Color(1, 1, 1)
+
+			# Draw left face (if block height > 0)
+			if bh > 0:
+				var lf = _make_left_face(spos.x, spos.y, TW, TH, bh, left_color)
+				root.add_child(lf)
+				var rf = _make_right_face(spos.x, spos.y, TW, TH, bh, right_color)
+				root.add_child(rf)
+
+			# Draw top face
+			var diamond = _make_diamond(spos.x, spos.y, TW, TH, top_color)
+			root.add_child(diamond)
+
+			# Draw label
+			if label_text != "":
+				var lbl = _make_label(spos.x, spos.y - bh / 2, label_text, max(TW / 4, 10), label_color)
+				root.add_child(lbl)
+
+	# Map legend
+	var cy = map_y + map_h + 4
+	boot.add_child(_lbl("P=You  E=Enemy  B=Building  Gray=Road  Cars=Yellow/Red/Blue", cx, cy, content_w, 22, 13, Color(0.5, 0.5, 0.5), false))
 	cy += 28
-	# Fuel info — centered
-	boot.add_child(_lbl("-- Fuel Station --", cx, cy, map_w, 26, 18, Color(0.5, 0.5, 0.6)))
+
+	# Fuel info
+	boot.add_child(_lbl("-- Fuel Station --", cx, cy, content_w, 26, 18, Color(0.5, 0.5, 0.6)))
 	cy += 28
-	lbl_fuel = _lbl("Fuel: " + str(my_fuel) + "/" + str(my_capacity) + " L", cx, cy, map_w / 2, 26, 18, Color(0.6, 0.8, 1.0), false)
+	var map_ctrl_w = content_w
+	lbl_fuel = _lbl("Fuel: " + str(my_fuel) + "/" + str(my_capacity) + " L", cx, cy, map_ctrl_w / 2, 26, 18, Color(0.6, 0.8, 1.0), false)
 	boot.add_child(lbl_fuel)
-	lbl_price = _lbl("Price: " + str(int(my_price)) + " R/L", cx + map_w / 2, cy, map_w / 2, 26, 18, Color(1, 0.9, 0.3), false)
+	lbl_price = _lbl("Price: " + str(int(my_price)) + " R/L", cx + map_ctrl_w / 2, cy, map_ctrl_w / 2, 26, 18, Color(1, 0.9, 0.3), false)
 	boot.add_child(lbl_price)
 	cy += 30
-	var bw = map_w / 4 - 6
+	var bw = map_ctrl_w / 4 - 6
 	boot.add_child(_btn("Price -5", cx, cy, bw, 44, Color(0.2, 0.15, 0.1), 18, _on_price_down))
 	boot.add_child(_btn("Price +5", cx + bw + 8, cy, bw, 44, Color(0.2, 0.15, 0.1), 18, _on_price_up))
 	boot.add_child(_btn("Buy Fuel", cx + bw * 2 + 16, cy, bw, 44, Color(0.1, 0.2, 0.15), 18, _on_buy))
 	boot.add_child(_btn("Buy MAX", cx + bw * 3 + 24, cy, bw, 44, Color(0.1, 0.15, 0.2), 18, _on_buy_max))
 	cy += 50
-	lbl_time = _lbl("Time: 8:00", cx, cy, map_w / 3, 26, 18, Color(0.5, 0.5, 0.6), false)
+	lbl_time = _lbl("Time: 8:00", cx, cy, map_ctrl_w / 3, 26, 18, Color(0.5, 0.5, 0.6), false)
 	boot.add_child(lbl_time)
-	lbl_revenue = _lbl("Revenue: 0 R", cx + map_w / 3, cy, map_w / 3, 26, 18, Color(0.7, 0.9, 0.7), false)
+	lbl_revenue = _lbl("Revenue: 0 R", cx + map_ctrl_w / 3, cy, map_ctrl_w / 3, 26, 18, Color(0.7, 0.9, 0.7), false)
 	boot.add_child(lbl_revenue)
-	lbl_fuel_sold = _lbl("Sold: 0 L", cx + map_w * 2 / 3, cy, map_w / 3, 26, 18, Color(0.6, 0.8, 1.0), false)
+	lbl_fuel_sold = _lbl("Sold: 0 L", cx + map_ctrl_w * 2 / 3, cy, map_ctrl_w / 3, 26, 18, Color(0.6, 0.8, 1.0), false)
 	boot.add_child(lbl_fuel_sold)
 	cy += 28
-	lbl_msg = _lbl("", cx, cy, map_w, 26, 16, Color(0.6, 0.6, 0.6), false)
+	lbl_msg = _lbl("", cx, cy, map_ctrl_w, 26, 16, Color(0.6, 0.6, 0.6), false)
 	boot.add_child(lbl_msg)
 	cy += 26
-	lbl_status = _lbl("", cx, cy, map_w, 26, 16, Color(0.8, 0.7, 0.3), false)
+	lbl_status = _lbl("", cx, cy, map_ctrl_w, 26, 16, Color(0.8, 0.7, 0.3), false)
 	boot.add_child(lbl_status)
 	cy += 30
-	# Opponents — centered
-	boot.add_child(_lbl("-- Opponents --", cx, cy, map_w, 26, 18, Color(0.5, 0.5, 0.6)))
+	boot.add_child(_lbl("-- Opponents --", cx, cy, map_ctrl_w, 26, 18, Color(0.5, 0.5, 0.6)))
 	cy += 26
-	lbl_opp = _lbl("", cx, cy, map_w, 26, 16, Color(0.9, 0.6, 0.3), false)
+	lbl_opp = _lbl("", cx, cy, map_ctrl_w, 26, 16, Color(0.9, 0.6, 0.3), false)
 	boot.add_child(lbl_opp)
 	cy += 28
 	for opp in my_opponents:
@@ -527,13 +819,14 @@ func show_gameplay(boot_node):
 			var bp = 60000 + current_level_num * 15000
 			bp = int(bp * opp.loyalty)
 			var ot = opp.name + "  Price:" + str(int(opp.price)) + "R  BUYOUT:" + str(bp) + "R"
-			boot.add_child(_btn(ot, cx, cy, map_w, 50, Color(0.2, 0.08, 0.08), 18, _on_buyout, opp.id))
+			boot.add_child(_btn(ot, cx, cy, map_ctrl_w, 50, Color(0.2, 0.08, 0.08), 18, _on_buyout, opp.id))
 			cy += 56
 	cy += 12
-	boot.add_child(_btn("Upgrade Shop", cx, cy, map_w, 46, Color(0.12, 0.12, 0.2), 20, _show_upgrade_shop))
+	boot.add_child(_btn("Upgrade Shop", cx, cy, map_ctrl_w, 46, Color(0.12, 0.12, 0.2), 20, _show_upgrade_shop))
 
 func _on_back():
 	my_in_game = false
+	cars = []
 	var s = _get_sim()
 	if s != null:
 		s.in_game = false
