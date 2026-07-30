@@ -1,4 +1,4 @@
-## MapView — isometric map renderer using Control._draw()
+## MapView — isometric map renderer using Control._draw() + Label nodes
 extends Control
 
 var tiles = []
@@ -7,6 +7,7 @@ var labels = []
 var TW = 64
 var TH = 32
 var font = null
+var _label_nodes = []
 
 func _draw():
 	for tile in tiles:
@@ -30,9 +31,7 @@ func _draw():
 		dp.append(Vector2(tile.x, tile.y + TH / 2))
 		dp.append(Vector2(tile.x - TW / 2, tile.y))
 		draw_polygon(dp, PackedColorArray([tile.tc]))
-	for lbl in labels:
-		if font != null:
-			draw_string(font, Vector2(lbl.x - 20, lbl.y + lbl.fs / 3), lbl.text, HORIZONTAL_ALIGNMENT_CENTER, 40, lbl.fs, lbl.color)
+	# Draw cars as small diamonds
 	for car in car_data:
 		var cp = PackedVector2Array()
 		cp.append(Vector2(car.x - 8, car.y - 4))
@@ -43,3 +42,26 @@ func _draw():
 
 func request_redraw():
 	queue_redraw()
+
+func rebuild_labels():
+	# Remove old label nodes
+	for ln in _label_nodes:
+		if is_instance_valid(ln):
+			remove_child(ln)
+			ln.free()
+	_label_nodes.clear()
+	# Create Label nodes for P/E/B
+	for lbl in labels:
+		var l = Label.new()
+		l.text = lbl.text
+		l.position = Vector2(lbl.x - 20, lbl.y - lbl.fs / 2)
+		l.size = Vector2(40, lbl.fs + 4)
+		l.horizontal_alignment = 1
+		l.vertical_alignment = 1
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if font != null:
+			l.add_theme_font_override("font", font)
+		l.add_theme_font_size_override("font_size", lbl.fs)
+		l.add_theme_color_override("font_color", lbl.color)
+		add_child(l)
+		_label_nodes.append(l)

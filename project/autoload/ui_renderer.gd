@@ -424,7 +424,7 @@ func show_main_menu(boot_node):
 	boot.add_child(_btn("Settings", btn_x1, btn_y, btn_w, btn_h, Color(0.15, 0.15, 0.25), 28, _show_settings))
 	boot.add_child(_btn("Achievements", btn_x2, btn_y, btn_w, btn_h, Color(0.2, 0.15, 0.08), 28, _show_achievements))
 	# Version
-	boot.add_child(_lbl("v36", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
+	boot.add_child(_lbl("v37", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
 
 	# Touch diagnostic on main menu too
 	lbl_touch_diag = _lbl("Touch:0", 20, SH - 70, 400, 26, 16, Color(0.5, 0.8, 0.5), false)
@@ -861,6 +861,7 @@ func show_gameplay(boot_node):
 				"color": label_color
 			})
 	map_view.request_redraw()
+	map_view.rebuild_labels()
 
 	# ---- TOP BAR (data + Back) ----
 	var tb = ColorRect.new()
@@ -958,7 +959,7 @@ func _on_back():
 	var s = _get_sim()
 	if s != null:
 		s.in_game = false
-	show_main_menu(boot)
+	_show_level_select()
 
 func _show_leave_confirm():
 	# Dark overlay
@@ -1002,6 +1003,10 @@ func _show_leave_confirm():
 	boot.add_child(_btn("NO, STAY", no_x, yes_y, yes_w, yes_h, Color(0.1, 0.3, 0.15), 22, _on_back_cancel))
 
 func _on_back_cancel():
+	# Use call_deferred to avoid crash — button is freed while callback runs
+	_restore_gameplay.call_deferred()
+
+func _restore_gameplay():
 	# Rebuild gameplay screen — game state is preserved in ui_renderer variables
 	show_gameplay(boot)
 
