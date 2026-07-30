@@ -19,7 +19,7 @@ window/stretch/mode="canvas_items"
 window/stretch/aspect="keep"
 window/mode/window_mode=0
 window/vsync/vsync_mode=1
-window/handheld/orientation=0
+window/handheld/orientation=4
 
 [rendering]
 

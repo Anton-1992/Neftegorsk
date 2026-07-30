@@ -1,4 +1,4 @@
-## UIRenderer.gd — v28: landscape mode, isometric + cars
+## UIRenderer.gd — v29: force landscape + diagnostics
 extends Node
 
 var boot = null
@@ -193,6 +193,8 @@ func _make_label(cx, cy, text, fs, color):
 
 func _process(delta):
 	_update_screen_size()
+	# Force landscape every frame
+	DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR_LANDSCAPE)
 	if current_screen != "gameplay" or not my_in_game:
 		return
 	ui_timer += delta
@@ -412,7 +414,7 @@ func show_main_menu(boot_node):
 	current_screen = "main_menu"
 	boot.add_child(_bg())
 	boot.add_child(_lbl("NEFTEGORSK", 0, 20, SW, 70, 52, Color(1, 0.9, 0.3)))
-	boot.add_child(_lbl("v28 Landscape", 0, 80, SW, 24, 16, Color(0.5, 0.5, 0.6)))
+	boot.add_child(_lbl("v29 Landscape", 0, 80, SW, 24, 16, Color(0.5, 0.5, 0.6)))
 	var g = _get_gs()
 	var cash_str = "0"
 	var stars_str = "0"
@@ -682,7 +684,7 @@ func show_gameplay(boot_node):
 	# SubViewport
 	var svp = SubViewport.new()
 	svp.size = Vector2(map_w, map_h)
-	svp.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
+	svp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	svc.add_child(svp)
 	map_svp = svp
 
@@ -822,7 +824,7 @@ func show_gameplay(boot_node):
 	py += 10
 	boot.add_child(_btn("Upgrade Shop", px, py, pw, 44, Color(0.12, 0.12, 0.2), 18, _show_upgrade_shop))
 	py += 50
-	boot.add_child(_lbl("P=You E=Enemy B=Building Gray=Road", px, py, pw, 20, 12, Color(0.4, 0.4, 0.4), false))
+	boot.add_child(_lbl("P=You E=Enemy B=Building Road=Gray | Map:" + str(my_grid) + "x" + str(my_grid) + " Tiles:" + str(my_grid * my_grid), px, py, pw, 20, 12, Color(0.4, 0.4, 0.4), false))
 
 func _on_back():
 	my_in_game = false

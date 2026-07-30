@@ -1,9 +1,11 @@
-## BootLoader.gd — v26: 9 autoloads, centered UI
+## BootLoader.gd — v29: force landscape orientation
 extends Control
 
 var font = null
 
 func _ready():
+	# Force landscape orientation at runtime
+	DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR_LANDSCAPE)
 	font = ResourceLoader.load("res://assets/fonts/DejaVuSans.ttf")
 	var gs = get_node_or_null("/root/GameState")
 	if gs != null and gs.has_method("init_state"):
@@ -16,17 +18,17 @@ func _ready():
 
 func _show_diag():
 	_clear_children()
-	var sw = 1080
-	var sh = 1920
+	var sw = 1920
+	var sh = 1080
 	var vp = get_viewport()
 	if vp != null:
 		var rect = vp.get_visible_rect()
 		sw = int(rect.size.x)
 		sh = int(rect.size.y)
 	if sw < 100:
-		sw = 1080
+		sw = 1920
 	if sh < 100:
-		sh = 1920
+		sh = 1080
 	var bg = ColorRect.new()
 	bg.color = Color(0.06, 0.08, 0.12)
 	bg.position = Vector2(0, 0)
@@ -34,7 +36,7 @@ func _show_diag():
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bg)
 	var autoloads = ["GameState", "GameManager", "LevelManager", "EconomyManager", "UpgradeManager", "SaveManager", "AudioManager", "Simulation", "UIRenderer"]
-	var diag_text = "NEFTEGORSK v28\n9 autoloads\nLandscape\n\n"
+	var diag_text = "NEFTEGORSK v29\n9 autoloads\nScreen: " + str(sw) + "x" + str(sh) + "\n\n"
 	var ok_count = 0
 	for name in autoloads:
 		var node = get_node_or_null("/root/" + name)
