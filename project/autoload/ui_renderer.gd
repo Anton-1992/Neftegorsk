@@ -413,7 +413,7 @@ func show_main_menu(boot_node):
 	var btn_x2 = SW / 2 + btn_gap / 2
 	boot.add_child(_btn("Settings", btn_x1, btn_y, btn_w, btn_h, Color(0.15, 0.15, 0.25), 28, _show_settings))
 	boot.add_child(_btn("Achievements", btn_x2, btn_y, btn_w, btn_h, Color(0.2, 0.15, 0.08), 28, _show_achievements))
-	boot.add_child(_lbl("v40", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
+	boot.add_child(_lbl("v41", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
 	lbl_touch_diag = _lbl("Touch:0", 20, SH - 70, 400, 26, 16, Color(0.5, 0.8, 0.5), false)
 	boot.add_child(lbl_touch_diag)
 
@@ -988,6 +988,11 @@ func _on_quit_level():
 	var s = _get_sim()
 	if s != null:
 		s.in_game = false
+	# Use call_deferred — button is still running its callback,
+	# _clear() inside _show_level_select() would free it mid-callback
+	_do_quit.call_deferred()
+
+func _do_quit():
 	_show_level_select()
 
 # ==================== PRICE / BUY / BUYOUT ====================
