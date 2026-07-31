@@ -1,8 +1,7 @@
-## UIRenderer.gd — v40: Pause as a separate screen (same pattern as Settings/Achievements)
-## Key insight: don't try to overlay the gameplay screen. Just clear it
-## and build a pause screen. Game state is preserved in ui_renderer variables.
-## When RESUME is pressed, rebuild the gameplay screen with show_gameplay(boot).
-## This is the EXACT same pattern that works for Settings, Achievements, etc.
+## UIRenderer.gd — v42: Flag-based screen transitions for ALL buttons
+## v41 call_deferred() didn't work on Android. Flag-based approach:
+## button callback sets pending_action, _process() does the actual transition
+## on next frame when button is no longer running its callback.
 extends Node
 
 var boot = null
@@ -57,6 +56,12 @@ var lbl_opp = null
 var lbl_revenue = null
 var lbl_fuel_sold = null
 
+# Flag-based screen transitions — set by button callback, checked in _process
+var pending_action = ""
+var quit_count = 0
+var resume_count = 0
+var lbl_pending = null
+
 func _get_gs():
 	if gs == null:
 		gs = get_node_or_null("/root/GameState")
@@ -96,6 +101,7 @@ func _clear():
 	lbl_opp = null
 	lbl_revenue = null
 	lbl_fuel_sold = null
+	lbl_pending = null
 	var ch = boot.get_children()
 	for c in ch:
 		boot.remove_child(c)
@@ -167,6 +173,16 @@ func _input(event):
 func _process(delta):
 	_update_screen_size()
 	DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR_LANDSCAPE)
+	# Flag-based screen transitions — safe because button callback has finished
+	if pending_action != "":
+		var action = pending_action
+		pending_action = ""
+		if action == "quit_level":
+			_show_level_select()
+			return
+		elif action == "resume":
+			show_gameplay(boot)
+			return
 	if current_screen != "gameplay" or not my_in_game:
 		return
 	ui_timer += delta
@@ -413,7 +429,7 @@ func show_main_menu(boot_node):
 	var btn_x2 = SW / 2 + btn_gap / 2
 	boot.add_child(_btn("Settings", btn_x1, btn_y, btn_w, btn_h, Color(0.15, 0.15, 0.25), 28, _show_settings))
 	boot.add_child(_btn("Achievements", btn_x2, btn_y, btn_w, btn_h, Color(0.2, 0.15, 0.08), 28, _show_achievements))
-	boot.add_child(_lbl("v41", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
+	boot.add_child(_lbl("v42", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
 	lbl_touch_diag = _lbl("Touch:0", 20, SH - 70, 400, 26, 16, Color(0.5, 0.8, 0.5), false)
 	boot.add_child(lbl_touch_diag)
 
@@ -972,28 +988,35 @@ func _show_pause_screen():
 	# QUIT LEVEL — red
 	boot.add_child(_btn("QUIT LEVEL", btn_x, btn_y, btn_w, btn_h, Color(0.5, 0.1, 0.1), 30, _on_quit_level))
 
+	# Diagnostic label — shows when QUIT/RESUME is pressed (visible on phone)
+	lbl_pending = _lbl("Ready", 0, SH - 85, SW, 30, 20, Color(0.6, 0.6, 0.3))
+	boot.add_child(lbl_pending)
+
 	# Touch diagnostic at bottom
 	lbl_touch_diag = _lbl("T:0", 20, SH - 50, 400, 26, 16, Color(0.5, 0.8, 0.5), false)
 	boot.add_child(lbl_touch_diag)
 
 func _on_resume():
-	# Rebuild gameplay screen — game state is preserved in variables
-	show_gameplay(boot)
+	# Set flag for _process to rebuild gameplay screen
+	resume_count += 1
+	if lbl_pending != null and is_instance_valid(lbl_pending):
+		lbl_pending.text = "RESUME PRESSED:" + str(resume_count)
+	my_in_game = true
+	pending_action = "resume"
 
 func _on_quit_level():
-	# Stop the game and go to level select
+	# Stop the game and set flag for _process to do the transition
 	my_in_game = false
 	cars = []
 	map_view = null
+	quit_count += 1
 	var s = _get_sim()
 	if s != null:
 		s.in_game = false
-	# Use call_deferred — button is still running its callback,
-	# _clear() inside _show_level_select() would free it mid-callback
-	_do_quit.call_deferred()
-
-func _do_quit():
-	_show_level_select()
+	# Show diagnostic label so user can confirm button press registered
+	if lbl_pending != null and is_instance_valid(lbl_pending):
+		lbl_pending.text = "QUIT PRESSED:" + str(quit_count)
+	pending_action = "quit_level"
 
 # ==================== PRICE / BUY / BUYOUT ====================
 
