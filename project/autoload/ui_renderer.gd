@@ -1,4 +1,4 @@
-## UIRenderer.gd — v38: Pause menu instead of Leave/Stay dialog
+## UIRenderer.gd — v39: Pause menu — flat layout, no container, bigger buttons
 extends Node
 
 var boot = null
@@ -39,10 +39,12 @@ var TH = 32
 var BLOCK_H = 20
 var cars = []
 
-# Pause overlay — the key difference from v37
-# We DON'T clear the gameplay screen. We just add a pause overlay on top.
-# When Resume is pressed, we remove the overlay. Simple and reliable.
-var pause_overlay = null
+# Pause system — flat list of nodes added directly to boot
+# v38 used a Control container with mouse_filter=IGNORE which BLOCKED
+# button presses on Android (same bug as BootLoader v36).
+# v39: add pause elements directly to boot, track them in a flat array.
+# When removing, just remove each one from boot and free it.
+var pause_nodes = []
 
 # Touch diagnostic counter
 var touch_count = 0
@@ -86,7 +88,7 @@ func _update_screen_size():
 func _clear():
 	if boot == null:
 		return
-	pause_overlay = null
+	pause_nodes = []
 	map_view = null
 	lbl_touch_diag = null
 	lbl_cash = null
@@ -115,10 +117,10 @@ func _btn(text, x, y, w, h, color, fs, cb, arg = null):
 		b.add_theme_font_override("font", font)
 	var s = StyleBoxFlat.new()
 	s.bg_color = color
-	s.corner_radius_bottom_left = 8
-	s.corner_radius_bottom_right = 8
-	s.corner_radius_top_left = 8
-	s.corner_radius_top_right = 8
+	s.corner_radius_bottom_left = 10
+	s.corner_radius_bottom_right = 10
+	s.corner_radius_top_left = 10
+	s.corner_radius_top_right = 10
 	b.add_theme_stylebox_override("normal", s)
 	b.add_theme_stylebox_override("hover", s)
 	b.add_theme_stylebox_override("pressed", s)
@@ -159,18 +161,15 @@ func _input(event):
 		touch_count += 1
 		if lbl_touch_diag != null:
 			lbl_touch_diag.text = "T:" + str(touch_count) + " " + str(int(event.position.x)) + "," + str(int(event.position.y))
-		# Handle hardware back button on Android
-		if pause_overlay != null:
-			return
 	if event is InputEventMouseButton and event.pressed:
 		touch_count += 1
 		if lbl_touch_diag != null:
 			lbl_touch_diag.text = "C:" + str(touch_count) + " " + str(int(event.position.x)) + "," + str(int(event.position.y))
 	# Handle Android hardware back button (KEY_ESCAPE)
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		if current_screen == "gameplay" and pause_overlay == null:
-			_show_pause()
-		elif current_screen == "gameplay" and pause_overlay != null:
+		if current_screen == "gameplay" and pause_nodes.size() == 0:
+			_on_pause_pressed()
+		elif current_screen == "gameplay" and pause_nodes.size() > 0:
 			_on_resume()
 
 # ==================== PROCESS ====================
@@ -402,16 +401,13 @@ func show_main_menu(boot_node):
 	_clear()
 	current_screen = "title"
 	boot.add_child(_bg(Color(0.04, 0.05, 0.09)))
-	# Title
 	boot.add_child(_lbl("NEFTEGORSK", 0, 60, SW, 100, 72, Color(1, 0.85, 0.2)))
 	boot.add_child(_lbl("Fuel Empire", 0, 150, SW, 40, 28, Color(0.6, 0.6, 0.7)))
-	# Big PLAY button
 	var play_w = 500
 	var play_h = 120
 	var play_x = (SW - play_w) / 2
 	var play_y = 260
 	boot.add_child(_btn("PLAY", play_x, play_y, play_w, play_h, Color(0.12, 0.45, 0.18), 52, _show_district_select))
-	# Stats below play button
 	var g = _get_gs()
 	var cash_str = "0"
 	var stars_str = "0"
@@ -419,7 +415,6 @@ func show_main_menu(boot_node):
 		cash_str = str(g.cash)
 		stars_str = str(g.total_stars)
 	boot.add_child(_lbl("Money: " + cash_str + " R  |  Stars: " + stars_str, 0, play_y + play_h + 20, SW, 30, 20, Color(0.5, 0.5, 0.6)))
-	# Settings + Achievements
 	var btn_w = 350
 	var btn_h = 80
 	var btn_gap = 40
@@ -428,10 +423,7 @@ func show_main_menu(boot_node):
 	var btn_x2 = SW / 2 + btn_gap / 2
 	boot.add_child(_btn("Settings", btn_x1, btn_y, btn_w, btn_h, Color(0.15, 0.15, 0.25), 28, _show_settings))
 	boot.add_child(_btn("Achievements", btn_x2, btn_y, btn_w, btn_h, Color(0.2, 0.15, 0.08), 28, _show_achievements))
-	# Version
-	boot.add_child(_lbl("v38", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
-
-	# Touch diagnostic
+	boot.add_child(_lbl("v39", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
 	lbl_touch_diag = _lbl("Touch:0", 20, SH - 70, 400, 26, 16, Color(0.5, 0.8, 0.5), false)
 	boot.add_child(lbl_touch_diag)
 
@@ -448,7 +440,6 @@ func _show_settings():
 	cy += 75
 	boot.add_child(_lbl("Settings", cx, cy, 600, 50, 38, Color(1, 0.9, 0.3)))
 	cy += 65
-	# Music
 	var music_text = "Music: ON"
 	var music_color = Color(0.12, 0.3, 0.15)
 	if not music_on:
@@ -456,7 +447,6 @@ func _show_settings():
 		music_color = Color(0.3, 0.12, 0.12)
 	boot.add_child(_btn(music_text, cx, cy, 600, 60, music_color, 24, _toggle_music))
 	cy += 80
-	# Sound
 	var sound_text = "Sound: ON"
 	var sound_color = Color(0.12, 0.3, 0.15)
 	if not sound_on:
@@ -464,10 +454,8 @@ func _show_settings():
 		sound_color = Color(0.3, 0.12, 0.12)
 	boot.add_child(_btn(sound_text, cx, cy, 600, 60, sound_color, 24, _toggle_sound))
 	cy += 100
-	# Save
 	boot.add_child(_btn("Save Game", cx, cy, 600, 60, Color(0.12, 0.18, 0.12), 24, _on_save))
 	cy += 80
-	# Reset
 	boot.add_child(_btn("Reset Progress", cx, cy, 600, 60, Color(0.35, 0.1, 0.1), 24, _on_reset))
 	cy += 100
 	boot.add_child(_lbl("All progress will be lost on reset!", cx, cy, 600, 30, 16, Color(0.6, 0.4, 0.4)))
@@ -766,7 +754,7 @@ func show_gameplay(boot_node):
 	var sz = my_grid
 
 	# Isometric tile size
-	var top_bar_h = 80
+	var top_bar_h = 90
 	var bot_bar_h = 140
 	var map_area_w = SW - 20
 	var map_area_h = SH - top_bar_h - bot_bar_h - 20
@@ -872,32 +860,34 @@ func show_gameplay(boot_node):
 	tb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	boot.add_child(tb)
 
-	# PAUSE BUTTON — large, easy to tap
-	var pause_w = 220
-	var pause_h = 55
-	var pause_x = 30
-	var pause_y = 12
-	boot.add_child(_btn("|| PAUSE", pause_x, pause_y, pause_w, pause_h, Color(0.5, 0.15, 0.1), 26, _on_pause_pressed))
+	# PAUSE BUTTON — large, away from screen edges, easy to tap
+	# v38 had (30, 12) — too close to top edge and camera notch
+	# v39: moved down to y=20, bigger button, more padding
+	var pause_w = 260
+	var pause_h = 60
+	var pause_x = 50
+	var pause_y = 18
+	boot.add_child(_btn("PAUSE", pause_x, pause_y, pause_w, pause_h, Color(0.5, 0.15, 0.1), 28, _on_pause_pressed))
 
 	# Touch diagnostic
-	lbl_touch_diag = _lbl("T:0", pause_x + pause_w + 10, pause_y, 250, 26, 16, Color(0.5, 0.8, 0.5), false)
+	lbl_touch_diag = _lbl("T:0", pause_x + pause_w + 10, pause_y + 15, 250, 26, 16, Color(0.5, 0.8, 0.5), false)
 	boot.add_child(lbl_touch_diag)
 
 	var d_name = ""
 	if g != null:
 		d_name = g.district_names.get(current_district_id, "")
 	boot.add_child(_lbl(d_name + " Lv." + str(current_level_num), 200, 10, 400, 30, 22, Color(1, 0.9, 0.3)))
-	lbl_cash = _lbl("Cash: " + str(my_cash) + " R", 200, 42, 300, 26, 18, Color(0.7, 0.9, 0.7), false)
+	lbl_cash = _lbl("Cash: " + str(my_cash) + " R", 200, 48, 300, 26, 18, Color(0.7, 0.9, 0.7), false)
 	boot.add_child(lbl_cash)
-	lbl_fuel = _lbl("Fuel: " + str(my_fuel) + "/" + str(my_capacity) + " L", 500, 42, 300, 26, 18, Color(0.6, 0.8, 1.0), false)
+	lbl_fuel = _lbl("Fuel: " + str(my_fuel) + "/" + str(my_capacity) + " L", 500, 48, 300, 26, 18, Color(0.6, 0.8, 1.0), false)
 	boot.add_child(lbl_fuel)
-	lbl_price = _lbl("Price: " + str(int(my_price)) + " R/L", 800, 42, 200, 26, 18, Color(1, 0.9, 0.3), false)
+	lbl_price = _lbl("Price: " + str(int(my_price)) + " R/L", 800, 48, 200, 26, 18, Color(1, 0.9, 0.3), false)
 	boot.add_child(lbl_price)
 	lbl_time = _lbl("Time: 8:00", 1020, 10, 200, 26, 18, Color(0.5, 0.5, 0.6), false)
 	boot.add_child(lbl_time)
-	lbl_revenue = _lbl("Rev: 0R", 1020, 42, 200, 26, 18, Color(0.7, 0.9, 0.7), false)
+	lbl_revenue = _lbl("Rev: 0R", 1020, 48, 200, 26, 18, Color(0.7, 0.9, 0.7), false)
 	boot.add_child(lbl_revenue)
-	lbl_fuel_sold = _lbl("Sold: 0L", 1240, 42, 200, 26, 18, Color(0.6, 0.8, 1.0), false)
+	lbl_fuel_sold = _lbl("Sold: 0L", 1240, 48, 200, 26, 18, Color(0.6, 0.8, 1.0), false)
 	boot.add_child(lbl_fuel_sold)
 	lbl_status = _lbl("", 1240, 10, 300, 26, 16, Color(0.8, 0.7, 0.3), false)
 	boot.add_child(lbl_status)
@@ -914,7 +904,7 @@ func show_gameplay(boot_node):
 
 	var by = SH - bot_bar_h + 10
 	var bw = 220
-	var bh2 = 50
+	var bh2 = 55
 	var gap = 15
 	var bx = 20
 
@@ -932,7 +922,6 @@ func show_gameplay(boot_node):
 
 	by += bh2 + 10
 	bx = 20
-	# Opponents
 	lbl_opp = _lbl("", bx, by, SW, 22, 16, Color(0.9, 0.6, 0.3), false)
 	boot.add_child(lbl_opp)
 	by += 24
@@ -944,20 +933,19 @@ func show_gameplay(boot_node):
 			boot.add_child(_btn(ot, bx, by, 500, 40, Color(0.2, 0.08, 0.08), 16, _on_buyout, opp.id))
 			bx += 520
 
-	# Legend
-	boot.add_child(_lbl("P=You  E=Enemy  B=Building  Gray=Road  Warm cars=To you  Cool cars=To enemy", 0, SH - 20, SW, 20, 12, Color(0.3, 0.3, 0.4)))
+	boot.add_child(_lbl("P=You  E=Enemy  B=Building  Gray=Road  Warm=To you  Cool=To enemy", 0, SH - 20, SW, 20, 12, Color(0.3, 0.3, 0.4)))
 
-# ==================== PAUSE SYSTEM (v38) ====================
-# Key design: DON'T clear the gameplay screen.
-# Just add the pause overlay on top of everything.
-# When Resume is pressed, remove the overlay and continue.
-# The gameplay screen is preserved underneath.
+# ==================== PAUSE SYSTEM (v39) ====================
+# v38 bug: Control container with mouse_filter=IGNORE blocked button
+# presses on Android (same root cause as BootLoader v36 bug).
+# v39 fix: add ALL pause elements directly to boot as flat children.
+# No container. Track them in pause_nodes array. When removing, just
+# remove each one from boot and free it. This is the same pattern
+# that works for all other buttons in the game.
 
 func _on_pause_pressed():
-	# Don't show pause if already paused
-	if pause_overlay != null:
+	if pause_nodes.size() > 0:
 		return
-	# Pause the simulation
 	my_in_game = false
 	_show_pause()
 
@@ -965,93 +953,92 @@ func _show_pause():
 	_load_font()
 	_update_screen_size()
 
-	# Create a Control container to hold all pause elements
-	# This container is added as a child of boot, ON TOP of the gameplay screen
-	var container = Control.new()
-	container.name = "PauseOverlay"
-	container.position = Vector2(0, 0)
-	container.size = Vector2(SW, SH)
-	container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Panel dimensions
+	var pw = 650
+	var ph = 450
+	var px = (SW - pw) / 2
+	var py = (SH - ph) / 2
 
-	# Dark overlay — mouse_filter=STOP to block touches to gameplay screen
+	# 1. Dark overlay — blocks touches to gameplay screen
 	var overlay = ColorRect.new()
 	overlay.color = Color(0, 0, 0, 0.75)
 	overlay.position = Vector2(0, 0)
 	overlay.size = Vector2(SW, SH)
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	container.add_child(overlay)
+	boot.add_child(overlay)
+	pause_nodes.append(overlay)
 
-	# Panel dimensions
-	var pw = 650
-	var ph = 420
-	var px = (SW - pw) / 2
-	var py = (SH - ph) / 2
-
-	# Border (behind panel)
+	# 2. Border
 	var border = ColorRect.new()
 	border.color = Color(0.5, 0.25, 0.1)
 	border.position = Vector2(px - 4, py - 4)
 	border.size = Vector2(pw + 8, ph + 8)
 	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	container.add_child(border)
+	boot.add_child(border)
+	pause_nodes.append(border)
 
-	# Panel background
+	# 3. Panel background
 	var panel = ColorRect.new()
 	panel.color = Color(0.1, 0.1, 0.18)
 	panel.position = Vector2(px, py)
 	panel.size = Vector2(pw, ph)
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	container.add_child(panel)
+	boot.add_child(panel)
+	pause_nodes.append(panel)
 
-	# PAUSED title
+	# 4. PAUSED title
 	var title = _lbl("PAUSED", px, py + 25, pw, 55, 44, Color(1, 0.85, 0.2))
-	container.add_child(title)
+	boot.add_child(title)
+	pause_nodes.append(title)
 
-	# Game info
-	var info = _lbl("Cash: " + str(my_cash) + " R  |  Fuel: " + str(my_fuel) + "L  |  Time: " + str(int(my_time) % 24) + ":00", px, py + 80, pw, 28, 18, Color(0.7, 0.7, 0.8))
-	container.add_child(info)
+	# 5. Game info
+	var info = _lbl("Cash: " + str(my_cash) + " R  |  Fuel: " + str(my_fuel) + "L  |  Time: " + str(int(my_time) % 24) + ":00", px, py + 85, pw, 28, 18, Color(0.7, 0.7, 0.8))
+	boot.add_child(info)
+	pause_nodes.append(info)
 
-	# Buttons — large, centered, easy to tap on phone
-	var btn_w = 450
-	var btn_h = 65
+	# 6. Buttons — large, centered, easy to tap
+	var btn_w = 480
+	var btn_h = 70
 	var btn_x = px + (pw - btn_w) / 2
-	var btn_y = py + 120
+	var btn_y = py + 130
 
 	# RESUME — green, most prominent
-	var resume_btn = _btn("RESUME", btn_x, btn_y, btn_w, btn_h, Color(0.12, 0.45, 0.18), 30, _on_resume)
-	container.add_child(resume_btn)
+	var resume_btn = _btn("RESUME", btn_x, btn_y, btn_w, btn_h, Color(0.12, 0.45, 0.18), 32, _on_resume)
+	boot.add_child(resume_btn)
+	pause_nodes.append(resume_btn)
 
-	btn_y += 80
+	btn_y += 90
 
-	# SAVE — subtle
-	var save_btn = _btn("SAVE GAME", btn_x, btn_y, btn_w, btn_h, Color(0.12, 0.18, 0.12), 26, _on_save)
-	container.add_child(save_btn)
+	# SAVE GAME
+	var save_btn = _btn("SAVE GAME", btn_x, btn_y, btn_w, btn_h, Color(0.12, 0.18, 0.12), 28, _on_save)
+	boot.add_child(save_btn)
+	pause_nodes.append(save_btn)
 
-	btn_y += 80
+	btn_y += 90
 
-	# QUIT LEVEL — red, at the bottom
-	var quit_btn = _btn("QUIT LEVEL", btn_x, btn_y, btn_w, btn_h, Color(0.5, 0.1, 0.1), 26, _on_quit_level)
-	container.add_child(quit_btn)
+	# QUIT LEVEL — red
+	var quit_btn = _btn("QUIT LEVEL", btn_x, btn_y, btn_w, btn_h, Color(0.5, 0.1, 0.1), 28, _on_quit_level)
+	boot.add_child(quit_btn)
+	pause_nodes.append(quit_btn)
 
-	# Add the container to boot — this renders on top of everything
-	boot.add_child(container)
-	pause_overlay = container
+func _remove_pause_nodes():
+	# Safely remove all pause nodes from boot
+	for pn in pause_nodes:
+		if is_instance_valid(pn) and pn.get_parent() != null:
+			pn.get_parent().remove_child(pn)
+		if is_instance_valid(pn):
+			pn.free()
+	pause_nodes = []
 
 func _on_resume():
-	# Remove the pause overlay — gameplay screen is preserved underneath
-	if pause_overlay != null:
-		var po = pause_overlay
-		pause_overlay = null
-		po.queue_free()
+	# Remove pause overlay — gameplay screen is preserved underneath
+	_remove_pause_nodes()
 	# Resume the simulation
 	my_in_game = true
 
 func _on_quit_level():
-	# Remove pause overlay first
-	if pause_overlay != null:
-		var po = pause_overlay
-		pause_overlay = null
-		po.queue_free()
+	# First remove pause overlay
+	_remove_pause_nodes()
 	# Stop the game
 	my_in_game = false
 	cars = []
@@ -1059,7 +1046,10 @@ func _on_quit_level():
 	var s = _get_sim()
 	if s != null:
 		s.in_game = false
-	# Go to level select
+	# Use call_deferred to safely transition — button callback may still be running
+	_do_quit_level.call_deferred()
+
+func _do_quit_level():
 	_show_level_select()
 
 # ==================== PRICE / BUY / BUYOUT ====================
