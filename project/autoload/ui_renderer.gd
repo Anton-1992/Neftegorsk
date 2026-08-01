@@ -1,10 +1,14 @@
-## UIRenderer.gd — v0.1.40: Android back gesture = pause, quit goes to menu
-## - NOTIFICATION_WM_GO_BACK_REQUEST opens pause (Android standard)
-## - QUIT LEVEL calls show_main_menu(boot) — same as Settings Back (works!)
-## - No _input() for pause buttons — prevents double-call crash
-## - Save removed everywhere, auto-save on level complete
-## - Cash removed from menu, upgrades only for stars
-## - Level starts with 0 cash, price step 0.5
+## UIRenderer.gd — v0.1.41: QUIT LEVEL fix + diagnostics
+## QUIT LEVEL has never worked across 10+ versions. Root cause analysis:
+## 1. _on_quit_level() IS called (proven by Q:66 counter)
+## 2. But show_main_menu(boot) fails silently when called from quit callback
+## 3. _input() fallback + Button.pressed BOTH fire = double-call
+## 4. Settings Back works because it uses show_main_menu.bind(boot) directly
+## Fix approach:
+## - Guard variable prevents double-call
+## - change_scene_to_file() as nuclear option for QUIT
+## - Cleanup code in show_main_menu() so it's self-contained
+## - No swipe/back gesture handling
 extends Node
 
 var boot = null
@@ -30,22 +34,18 @@ var my_sold = 0
 var my_in_game = false
 var player_pos = Vector2i(0, 0)
 
-# Settings
 var music_on = true
 var sound_on = true
 
-# Screen dimensions
 var SW = 1920
 var SH = 1080
 
-# Map view reference
 var map_view = null
 var TW = 64
 var TH = 32
 var BLOCK_H = 20
 var cars = []
 
-# Touch diagnostic counter
 var touch_count = 0
 var lbl_touch_diag = null
 
@@ -59,8 +59,20 @@ var lbl_opp = null
 var lbl_revenue = null
 var lbl_fuel_sold = null
 
-# Touch rect for PAUSE button on gameplay screen
+# Touch rects for buttons
 var pause_rect = Rect2()
+var resume_rect = Rect2()
+var quit_rect = Rect2()
+
+# DIAGNOSTIC COUNTERS
+var quit_calls = 0
+var resume_calls = 0
+var menu_calls = 0
+var pause_calls = 0
+var lbl_diag = null
+
+# TRANSITION GUARD — prevents double-call from _input() + Button.pressed
+var _transitioning = false
 
 func _get_gs():
 	if gs == null:
@@ -101,7 +113,10 @@ func _clear():
 	lbl_opp = null
 	lbl_revenue = null
 	lbl_fuel_sold = null
+	lbl_diag = null
 	pause_rect = Rect2()
+	resume_rect = Rect2()
+	quit_rect = Rect2()
 	var ch = boot.get_children()
 	for c in ch:
 		boot.remove_child(c)
@@ -156,27 +171,10 @@ func _bg(color = Color(0.06, 0.08, 0.12)):
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return bg
 
-# ==================== ANDROID BACK GESTURE ====================
-
-func _notification(what):
-	# Android back swipe = open pause menu (standard Android pattern)
-	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
-		if current_screen == "gameplay" and my_in_game:
-			_on_pause_pressed()
-		elif current_screen == "pause":
-			_on_resume()
-		elif current_screen == "district_select":
-			show_main_menu(boot)
-		elif current_screen == "level_select":
-			_show_district_select()
-		elif current_screen == "settings":
-			show_main_menu(boot)
-		elif current_screen == "achievements":
-			show_main_menu(boot)
-		elif current_screen == "upgrade_shop":
-			_show_district_select()
-		elif current_screen == "title":
-			get_tree().quit()
+func _add_diag():
+	var txt = "Q:" + str(quit_calls) + " R:" + str(resume_calls) + " M:" + str(menu_calls) + " P:" + str(pause_calls) + " T:" + str(_transitioning)
+	lbl_diag = _lbl(txt, 0, SH - 35, SW, 28, 16, Color(0.8, 0.8, 0.2))
+	boot.add_child(lbl_diag)
 
 # ==================== INPUT ====================
 
@@ -194,11 +192,23 @@ func _input(event):
 	touch_count += 1
 	if lbl_touch_diag != null:
 		lbl_touch_diag.text = "T:" + str(touch_count) + " " + str(int(pos.x)) + "," + str(int(pos.y))
-	# Only handle PAUSE button on gameplay screen via _input
-	# Pause screen buttons handled by Button.pressed ONLY (no double-call)
+
+	# Gameplay: PAUSE button
 	if current_screen == "gameplay" and pause_rect.has_point(pos):
+		pause_calls += 1
 		_on_pause_pressed()
 		return
+
+	# Pause screen: RESUME and QUIT via _input() fallback
+	if current_screen == "pause":
+		if resume_rect.has_point(pos):
+			resume_calls += 1
+			_on_resume()
+			return
+		if quit_rect.has_point(pos):
+			quit_calls += 1
+			_on_quit_level()
+			return
 
 # ==================== PROCESS ====================
 
@@ -423,9 +433,19 @@ func _refresh_labels():
 # ==================== TITLE SCREEN ====================
 
 func show_main_menu(boot_node):
+	# Reset transition guard
+	_transitioning = false
+	menu_calls += 1
 	boot = boot_node
 	_load_font()
 	_update_screen_size()
+	# Cleanup any leftover game state
+	my_in_game = false
+	cars = []
+	map_view = null
+	var s = _get_sim()
+	if s != null:
+		s.in_game = false
 	_clear()
 	current_screen = "title"
 	boot.add_child(_bg(Color(0.04, 0.05, 0.09)))
@@ -449,9 +469,10 @@ func show_main_menu(boot_node):
 	var btn_x2 = SW / 2 + btn_gap / 2
 	boot.add_child(_btn("Settings", btn_x1, btn_y, btn_w, btn_h, Color(0.15, 0.15, 0.25), 28, _show_settings))
 	boot.add_child(_btn("Achievements", btn_x2, btn_y, btn_w, btn_h, Color(0.2, 0.15, 0.08), 28, _show_achievements))
-	boot.add_child(_lbl("v0.1.40", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
-	lbl_touch_diag = _lbl("Touch:0", 20, SH - 70, 400, 26, 16, Color(0.5, 0.8, 0.5), false)
+	boot.add_child(_lbl("v0.1.41", 0, SH - 60, SW, 30, 14, Color(0.3, 0.3, 0.4)))
+	lbl_touch_diag = _lbl("Touch:0", 20, SH - 80, 400, 26, 16, Color(0.5, 0.8, 0.5), false)
 	boot.add_child(lbl_touch_diag)
+	_add_diag()
 
 # ==================== SETTINGS ====================
 
@@ -483,6 +504,7 @@ func _show_settings():
 	boot.add_child(_btn("Reset Progress", cx, cy, 600, 60, Color(0.35, 0.1, 0.1), 24, _on_reset))
 	cy += 100
 	boot.add_child(_lbl("All progress will be lost on reset!", cx, cy, 600, 30, 16, Color(0.6, 0.4, 0.4)))
+	_add_diag()
 
 func _toggle_music():
 	music_on = not music_on
@@ -517,6 +539,7 @@ func _show_achievements():
 	var g = _get_gs()
 	if g == null:
 		boot.add_child(_lbl("GameState not available!", cx, 100, 700, 40, 24, Color(1, 0.3, 0.3)))
+		_add_diag()
 		return
 	var y = 100
 	boot.add_child(_lbl("Total Stars: " + str(g.total_stars), cx, y, 700, 30, 24, Color(1, 0.9, 0.3), false))
@@ -532,8 +555,6 @@ func _show_achievements():
 	y += 40
 	var unlocked_count = g.unlocked_districts.size()
 	boot.add_child(_lbl("Districts Unlocked: " + str(unlocked_count) + " / 10", cx, y, 700, 30, 24, Color(0.8, 0.7, 0.9), false))
-	y += 40
-	boot.add_child(_lbl("Upgrades Owned: " + str(g.owned_upgrades.size()), cx, y, 700, 30, 24, Color(0.7, 0.9, 0.7), false))
 	y += 60
 	boot.add_child(_lbl("-- District Progress --", cx, y, 700, 30, 22, Color(0.6, 0.6, 0.7)))
 	y += 35
@@ -552,6 +573,7 @@ func _show_achievements():
 			status = "LOCKED"
 		boot.add_child(_lbl(d_name + ":  " + status, cx, y, 700, 26, 20, Color(0.7, 0.7, 0.8), false))
 		y += 30
+	_add_diag()
 
 # ==================== DISTRICT SELECT ====================
 
@@ -605,6 +627,7 @@ func _show_district_select():
 	var max_y = max(y_left, y_right)
 	max_y += 15
 	boot.add_child(_btn("Upgrade Shop", left_x, max_y, col_w, 50, Color(0.15, 0.12, 0.25), 22, _show_upgrade_shop))
+	_add_diag()
 
 func _on_district(d_id):
 	current_district_id = d_id
@@ -654,6 +677,7 @@ func _show_level_select():
 		else:
 			boot.add_child(_lbl("Level " + str(i) + "  [Locked]", cx, y, content_w, 55, 18, Color(0.35, 0.35, 0.4), false))
 		y += 62
+	_add_diag()
 
 func _on_level(num):
 	current_level_num = num
@@ -767,6 +791,7 @@ func show_gameplay(boot_node):
 	_clear()
 	current_screen = "gameplay"
 	my_in_game = true
+	_transitioning = false
 	var g = _get_gs()
 	var sz = my_grid
 
@@ -875,7 +900,6 @@ func show_gameplay(boot_node):
 	tb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	boot.add_child(tb)
 
-	# PAUSE button — top-left
 	var pause_w = 160
 	var pause_h = 55
 	pause_rect = Rect2(10, 15, pause_w, pause_h)
@@ -942,11 +966,13 @@ func show_gameplay(boot_node):
 			boot.add_child(_btn(ot, bx, by, 500, 40, Color(0.2, 0.08, 0.08), 16, _on_buyout, opp.id))
 			bx += 520
 
-	boot.add_child(_lbl("P=You  E=Enemy  B=Building  Gray=Road  Warm=To you  Cool=To enemy  Swipe back=Pause", 0, SH - 20, SW, 20, 12, Color(0.3, 0.3, 0.4)))
+	boot.add_child(_lbl("P=You  E=Enemy  B=Building  Gray=Road", 0, SH - 20, SW, 20, 12, Color(0.3, 0.3, 0.4)))
+	_add_diag()
 
 # ==================== PAUSE SCREEN ====================
 
 func _on_pause_pressed():
+	pause_calls += 1
 	my_in_game = false
 	_show_pause_screen()
 
@@ -974,29 +1000,49 @@ func _show_pause_screen():
 	var btn_x = (SW - btn_w) / 2
 	var btn_y = 420
 
-	# RESUME — same pattern as Settings Back button
+	# RESUME button
+	resume_rect = Rect2(btn_x, btn_y, btn_w, btn_h)
 	boot.add_child(_btn("RESUME", btn_x, btn_y, btn_w, btn_h, Color(0.12, 0.5, 0.18), 38, _on_resume))
 	btn_y += 130
 
-	# QUIT LEVEL — calls show_main_menu (same as Settings Back, proven to work!)
+	# QUIT LEVEL button
+	quit_rect = Rect2(btn_x, btn_y, btn_w, btn_h)
 	boot.add_child(_btn("QUIT LEVEL", btn_x, btn_y, btn_w, btn_h, Color(0.5, 0.1, 0.1), 34, _on_quit_level))
 
-	boot.add_child(_lbl("Swipe back = Resume", 0, SH - 50, SW, 30, 16, Color(0.4, 0.4, 0.5)))
+	# Big diagnostic line
+	boot.add_child(_lbl("Q:" + str(quit_calls) + " R:" + str(resume_calls) + " M:" + str(menu_calls) + " P:" + str(pause_calls) + " T:" + str(_transitioning), 0, SH - 80, SW, 30, 22, Color(1, 1, 0)))
+
+	lbl_touch_diag = _lbl("T:0", 20, SH - 50, 400, 26, 16, Color(0.5, 0.8, 0.5), false)
+	boot.add_child(lbl_touch_diag)
+	_add_diag()
 
 func _on_resume():
-	# Same pattern as Settings/Achievements — direct call
+	if _transitioning:
+		return
+	_transitioning = true
+	resume_calls += 1
 	my_in_game = true
 	show_gameplay(boot)
 
 func _on_quit_level():
-	# Go to main menu — same as Settings Back button which works
+	# GUARD: prevent double-call from _input() + Button.pressed
+	if _transitioning:
+		return
+	_transitioning = true
+	quit_calls += 1
 	my_in_game = false
 	cars = []
 	map_view = null
 	var s = _get_sim()
 	if s != null:
 		s.in_game = false
-	show_main_menu(boot)
+	
+	# NUCLEAR OPTION: reload the entire scene from scratch
+	# This bypasses any issues with _clear() freeing the button
+	# while the callback is still running.
+	# The new BootLoader's _ready() will call show_main_menu(self)
+	# which resets everything cleanly.
+	get_tree().change_scene_to_file("res://autoload/boot_loader.tscn")
 
 # ==================== PRICE / BUY / BUYOUT ====================
 
@@ -1104,6 +1150,7 @@ func _show_upgrade_shop():
 	var g = _get_gs()
 	if g == null:
 		boot.add_child(_lbl("GameState not available!", cx, 100, content_w, 40, 24, Color(1, 0.3, 0.3)))
+		_add_diag()
 		return
 	boot.add_child(_lbl("Stars: " + str(g.total_stars), cx, 80, content_w, 30, 20, Color(1, 0.9, 0.3), false))
 	var y = 130
@@ -1131,6 +1178,7 @@ func _show_upgrade_shop():
 			else:
 				boot.add_child(_lbl("[LOCKED] " + bt, cx, y, content_w, 50, 18, Color(0.35, 0.35, 0.4), false))
 		y += 58
+	_add_diag()
 
 func _on_buy_upg(uid):
 	var g = _get_gs()
@@ -1178,6 +1226,7 @@ func show_result(won, stars, stars_gained):
 	var bx = SW / 2 - bw - 10
 	boot.add_child(_btn("Back to Menu", bx, 450, bw, 60, Color(0.15, 0.2, 0.25), 26, show_main_menu.bind(boot)))
 	boot.add_child(_btn("Retry Level", bx + bw + 20, 450, bw, 60, Color(0.2, 0.15, 0.1), 26, _on_retry))
+	_add_diag()
 
 func _on_retry():
 	_gen_map()
