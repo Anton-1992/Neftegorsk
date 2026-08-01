@@ -1,7 +1,7 @@
-## UIRenderer.gd — v43: Direct _input() touch handling for pause screen
-## v42 Button.pressed didn't fire on pause screen. Added _input() fallback
-## that checks touch position against stored button rects.
-## Also: PAUSE moved to top-left, SAVE removed from pause, bigger buttons.
+## UIRenderer.gd — v44: Direct call for QUIT LEVEL (same pattern as Settings)
+## v43 flag-based approach: Q:66 means _show_level_select() crashes silently.
+## Settings/Achievements use direct call and work fine. Use same pattern.
+## Also: randomize player station position in map generation.
 extends Node
 
 var boot = null
@@ -56,16 +56,10 @@ var lbl_opp = null
 var lbl_revenue = null
 var lbl_fuel_sold = null
 
-# Flag-based screen transitions — set by button callback, checked in _process
-var pending_action = ""
-var quit_count = 0
-var resume_count = 0
-var lbl_pending = null
-
-# Direct touch rects for pause screen buttons (fallback when Button.pressed fails)
+# Direct touch rects for buttons
+var pause_rect = Rect2()
 var resume_rect = Rect2()
 var quit_rect = Rect2()
-var pause_rect = Rect2()
 
 func _get_gs():
 	if gs == null:
@@ -106,10 +100,9 @@ func _clear():
 	lbl_opp = null
 	lbl_revenue = null
 	lbl_fuel_sold = null
-	lbl_pending = null
+	pause_rect = Rect2()
 	resume_rect = Rect2()
 	quit_rect = Rect2()
-	pause_rect = Rect2()
 	var ch = boot.get_children()
 	for c in ch:
 		boot.remove_child(c)
@@ -187,7 +180,7 @@ func _input(event):
 		return
 
 	# Direct touch handling for pause screen buttons
-	if current_screen == "pause" and pending_action == "":
+	if current_screen == "pause":
 		if resume_rect.has_point(pos):
 			_on_resume()
 			return
@@ -200,16 +193,6 @@ func _input(event):
 func _process(delta):
 	_update_screen_size()
 	DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR_LANDSCAPE)
-	# Flag-based screen transitions — safe because button callback has finished
-	if pending_action != "":
-		var action = pending_action
-		pending_action = ""
-		if action == "quit_level":
-			_show_level_select()
-			return
-		elif action == "resume":
-			show_gameplay(boot)
-			return
 	if current_screen != "gameplay" or not my_in_game:
 		return
 	ui_timer += delta
@@ -456,7 +439,7 @@ func show_main_menu(boot_node):
 	var btn_x2 = SW / 2 + btn_gap / 2
 	boot.add_child(_btn("Settings", btn_x1, btn_y, btn_w, btn_h, Color(0.15, 0.15, 0.25), 28, _show_settings))
 	boot.add_child(_btn("Achievements", btn_x2, btn_y, btn_w, btn_h, Color(0.2, 0.15, 0.08), 28, _show_achievements))
-	boot.add_child(_lbl("v43", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
+	boot.add_child(_lbl("v44", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
 	lbl_touch_diag = _lbl("Touch:0", 20, SH - 70, 400, 26, 16, Color(0.5, 0.8, 0.5), false)
 	boot.add_child(lbl_touch_diag)
 
@@ -733,14 +716,18 @@ func _gen_map():
 							near = true
 				if near and rng.randf() < 0.55:
 					my_map[y][x] = 2
-	var px = sz / 2
-	var py = sz / 2
+	# Place player station — find ALL road tiles near center, pick random one
+	var candidates = []
 	for y in range(sz):
 		for x in range(sz):
 			if my_map[y][x] == 1 and abs(x - sz / 2) <= 2 and abs(y - sz / 2) <= 2:
-				px = x
-				py = y
-				break
+				candidates.append(Vector2i(x, y))
+	var px = sz / 2
+	var py = sz / 2
+	if candidates.size() > 0:
+		var pick = candidates[rng.randi_range(0, candidates.size() - 1)]
+		px = pick.x
+		py = pick.y
 	my_map[py][px] = 5
 	player_pos = Vector2i(px, py)
 	my_opponents = []
@@ -894,7 +881,7 @@ func show_gameplay(boot_node):
 	tb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	boot.add_child(tb)
 
-	# PAUSE button — top-left corner, small
+	# PAUSE button — top-left corner
 	var pause_w = 160
 	var pause_h = 55
 	var pause_x = 10
@@ -1001,45 +988,34 @@ func _show_pause_screen():
 	var btn_x = (SW - btn_w) / 2
 	var btn_y = 420
 
-	# RESUME — green, most prominent
+	# RESUME — green, most prominent — same pattern as Settings Back button
 	resume_rect = Rect2(btn_x, btn_y, btn_w, btn_h)
 	boot.add_child(_btn("RESUME", btn_x, btn_y, btn_w, btn_h, Color(0.12, 0.5, 0.18), 38, _on_resume))
 	btn_y += 130
 
-	# QUIT LEVEL — red
+	# QUIT LEVEL — red — same pattern as Settings Back button
 	quit_rect = Rect2(btn_x, btn_y, btn_w, btn_h)
 	boot.add_child(_btn("QUIT LEVEL", btn_x, btn_y, btn_w, btn_h, Color(0.5, 0.1, 0.1), 34, _on_quit_level))
-
-	# Diagnostic label — shows when QUIT/RESUME is pressed (visible on phone)
-	lbl_pending = _lbl("Ready Q:" + str(quit_count) + " R:" + str(resume_count), 0, SH - 85, SW, 30, 20, Color(0.6, 0.6, 0.3))
-	boot.add_child(lbl_pending)
 
 	# Touch diagnostic at bottom
 	lbl_touch_diag = _lbl("T:0", 20, SH - 50, 400, 26, 16, Color(0.5, 0.8, 0.5), false)
 	boot.add_child(lbl_touch_diag)
 
 func _on_resume():
-	if pending_action != "":
-		return
-	resume_count += 1
-	if lbl_pending != null and is_instance_valid(lbl_pending):
-		lbl_pending.text = "RESUME:" + str(resume_count)
+	# Same pattern as Settings/Achievements — direct call, works on Android
 	my_in_game = true
-	pending_action = "resume"
+	show_gameplay(boot)
 
 func _on_quit_level():
-	if pending_action != "":
-		return
+	# Same pattern as Settings/Achievements — direct call, works on Android
+	# Go to district select (not level select — simpler, fewer things to crash)
 	my_in_game = false
 	cars = []
 	map_view = null
-	quit_count += 1
 	var s = _get_sim()
 	if s != null:
 		s.in_game = false
-	if lbl_pending != null and is_instance_valid(lbl_pending):
-		lbl_pending.text = "QUIT:" + str(quit_count)
-	pending_action = "quit_level"
+	_show_district_select()
 
 # ==================== PRICE / BUY / BUYOUT ====================
 
