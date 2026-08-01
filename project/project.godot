@@ -8,7 +8,7 @@
 
 config/name="Neftegorsk"
 config/icon="res://assets/icons/app_icon.svg"
-run/main_scene="res://scenes/main_menu/main_menu.tscn"
+run/main_scene="res://autoload/boot_loader.tscn"
 
 [display]
 
@@ -34,12 +34,17 @@ rendering/quality/shadows/shadow_atlas_size=2048
 
 [autoload]
 
-GameManager="res://autoload/game_manager.gd"
-LevelManager="res://autoload/level_manager.gd"
-UpgradeManager="res://autoload/upgrade_manager.gd"
-EconomyManager="res://autoload/economy_manager.gd"
-SaveManager="res://autoload/save_manager.gd"
-AudioManager="res://autoload/audio_manager.gd"
+# Core systems (order matters!)
+GameState="*res://autoload/game_state.tscn"
+GameManager="*res://autoload/game_manager.tscn"
+LevelManager="*res://autoload/level_manager.tscn"
+EconomyManager="*res://autoload/economy_manager.gd"
+UpgradeManager="*res://autoload/upgrade_manager.gd"
+SaveManager="*res://autoload/save_manager.gd"
+AudioManager="*res://autoload/audio_manager.gd"
+Simulation="*res://autoload/simulation.tscn"
+UIRenderer="*res://autoload/ui_renderer.tscn"
+BootLoader="*res://autoload/boot_loader.tscn"
 
 [physics]
 

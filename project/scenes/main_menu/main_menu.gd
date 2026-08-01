@@ -1,31 +1,32 @@
 ## MainMenu.gd
 ## Main menu with St. Petersburg-style city map and district selection
+## Uses Dictionary instead of DistrictData/LevelData for Android compatibility
 
 extends Control
 
-@onready var map_container = %MapContainer
-@onready var district_layer = %DistrictLayer
-@onready var district_info = %DistrictInfoPanel
-@onready var district_name = %DistrictName
-@onready var district_desc = %DistrictDesc
-@onready var stat_levels = %StatLevelsVal
-@onready var stat_stars = %StatStarsVal
-@onready var stat_difficulty = %StatDifficultyVal
-@onready var btn_enter = %BtnEnterDistrict
-@onready var cash_label = %CashLabel
-@onready var stars_label = %StarsLabel
-@onready var btn_continue = %BtnContinue
-@onready var btn_upgrades = %BtnUpgradeTree
-@onready var btn_settings = %BtnSettings
-@onready var level_select_dialog = %LevelSelectDialog
-@onready var level_list = %LevelList
-@onready var btn_level_confirm = %BtnLevelSelectConfirm
-@onready var settings_dialog = %SettingsDialog
-@onready var music_volume = %MusicVolume
-@onready var sfx_volume = %SfxVolume
-@onready var btn_reset = %BtnResetProgress
-@onready var reset_dialog = %ResetConfirmDialog
-@onready var new_game_dialog = %NewGameDialog
+@onready var map_container: Control = $MapContainer
+@onready var district_layer: Node2D = $MapContainer/DistrictLayer
+@onready var district_info: Panel = $UILayer/DistrictInfoPanel
+@onready var district_name: Label = $UILayer/DistrictInfoPanel/DistrictInfoContent/DistrictName
+@onready var district_desc: Label = $UILayer/DistrictInfoPanel/DistrictInfoContent/DistrictDesc
+@onready var stat_levels: Label = $UILayer/DistrictInfoPanel/DistrictInfoContent/DistrictStats/StatLevelsVal
+@onready var stat_stars: Label = $UILayer/DistrictInfoPanel/DistrictInfoContent/DistrictStats/StatStarsVal
+@onready var stat_difficulty: Label = $UILayer/DistrictInfoPanel/DistrictInfoContent/DistrictStats/StatDifficultyVal
+@onready var btn_enter: Button = $UILayer/DistrictInfoPanel/DistrictInfoContent/BtnEnterDistrict
+@onready var cash_label: Label = $UILayer/TopBar/CurrencyDisplay/CashLabel
+@onready var stars_label: Label = $UILayer/TopBar/CurrencyDisplay/StarsLabel
+@onready var btn_continue: Button = $UILayer/BottomBar/BtnContinue
+@onready var btn_upgrades: Button = $UILayer/BottomBar/BtnUpgradeTree
+@onready var btn_settings: Button = $UILayer/BottomBar/BtnSettings
+@onready var level_select_dialog: AcceptDialog = $LevelSelectDialog
+@onready var level_list: ItemList = $LevelSelectDialog/LevelSelectContainer/LevelList
+@onready var btn_level_confirm: Button = $LevelSelectDialog/LevelSelectContainer/BtnLevelSelectConfirm
+@onready var settings_dialog: AcceptDialog = $SettingsDialog
+@onready var music_volume: HSlider = $SettingsDialog/SettingsContainer/AudioSection/MusicVolume
+@onready var sfx_volume: HSlider = $SettingsDialog/SettingsContainer/AudioSection/SfxVolume
+@onready var btn_reset: Button = $SettingsDialog/SettingsContainer/DataSection/BtnResetProgress
+@onready var reset_dialog: ConfirmationDialog = $ResetConfirmDialog
+@onready var new_game_dialog: ConfirmationDialog = $NewGameDialog
 
 var selected_district: StringName = ""
 var district_buttons: Dictionary = {}  # district_id -> Button
@@ -102,66 +103,46 @@ func _create_district_map() -> void:
 		district_layer.add_child(btn)
 		district_buttons[district_data.district_id] = btn
 
-func _create_district_button(district: DistrictData, position: Vector2) -> Button:
+func _create_district_button(district: Dictionary, position: Vector2) -> Button:
+	# district is now a Dictionary, not DistrictData
+	var district_id = district.get("id", "")
+	var display_name = district.get("name", district_id)
+	var levels = district.get("levels", 4)
+	
 	var btn = Button.new()
-	btn.name = "DistrictBtn_%s" % district.district_id
-	btn.custom_minimum_size = Vector2(60, 60)
-	btn.tooltip_text = district.display_name
+	btn.name = "DistrictBtn_%s" % district_id
+	btn.custom_minimum_size = Vector2(80, 80)
+	btn.text = display_name
+	btn.tooltip_text = display_name
 	
 	# Position relative to map container
 	btn.anchors_preset = Control.PRESET_TOP_LEFT
-	btn.offset_left = position.x - 30
-	btn.offset_top = position.y - 30
+	btn.offset_left = position.x - 40
+	btn.offset_top = position.y - 40
+	btn.offset_right = position.x + 40
+	btn.offset_bottom = position.y + 40
 	
-	# Custom drawing for district icon
-	var is_unlocked = GameManager.is_district_unlocked(district.district_id)
-	var progress = GameManager.get_level_progress(district.district_id)
+	# Style the button based on unlock status
+	var is_unlocked = GameManager.is_district_unlocked(StringName(district_id))
+	var progress = GameManager.get_level_progress(district_id)
 	
-	btn.draw_rect_callback = _draw_district_button.bind(btn, district, is_unlocked, progress)
-	btn.pressed.connect(_on_district_pressed.bind(district.district_id))
-	btn.mouse_entered.connect(_on_district_hover.bind(district.district_id, true))
-	btn.mouse_exited.connect(_on_district_hover.bind(district.district_id, false))
-	
-	# Force redraw
-	btn.queue_redraw()
-	return btn
-
-func _draw_district_button(btn: Button, district: DistrictData, unlocked: bool, progress: Dictionary) -> void:
-	var rect = Rect2(Vector2(0, 0), btn.custom_minimum_size)
-	var center = rect.size / 2
-	var radius = 25
-	
-	# Background circle
-	var bg_color = district.background_color
-	if not unlocked:
-		bg_color = Color(0.2, 0.2, 0.25, 0.7)
-	btn.draw_circle(center, radius, bg_color)
-	
-	# Border
-	var border_color = district.building_colors[0] if district.building_colors.size() > 0 else Color(0.5, 0.5, 0.6)
-	if not unlocked:
-		border_color = Color(0.4, 0.4, 0.5)
-	if btn == _get_hovered_button():
-		border_color = Color(1, 0.9, 0.3)
-	btn.draw_circle(center, radius, border_color, false, 3)
-	
-	# Lock icon if locked
-	if not unlocked:
-		btn.draw_string(btn.get_theme_font("font", "Label"), center + Vector2(-8, 4), "🔒", 
-		                HorizontalAlignment.CENTER, -1, 24)
+	# Color scheme
+	var base_color = district.get("color", Color(0.3, 0.3, 0.35))
+	if not is_unlocked:
+		btn.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+		btn.text = "🔒 " + display_name
 	else:
-		# Stars earned
-		var stars = progress.stars
-		var max_stars = progress.max_stars if progress.max_stars > 0 else district.levels_per_district * 3
-		var star_text = "%d/%d" % [stars, max_stars]
-		btn.draw_string(btn.get_theme_font("font", "Label"), center + Vector2(0, 4), star_text,
-		                HorizontalAlignment.CENTER, -1, 18)
-		
-		# Completion indicator
-		if progress.completed == progress.total and progress.total > 0:
-			btn.draw_circle(center + Vector2(20, -20), 12, Color(0.4, 1, 0.4))
-			btn.draw_string(btn.get_theme_font("font", "Label"), center + Vector2(20, -16), "✓",
-			                HorizontalAlignment.CENTER, -1, 20)
+		# Show completion status in text
+		var completed = progress.get("completed", 0)
+		var total = progress.get("total", levels)
+		var stars = progress.get("stars", 0)
+		btn.text = "%s\n%d/%d ★%d" % [display_name, completed, total, stars]
+	
+	btn.pressed.connect(_on_district_pressed.bind(StringName(district_id)))
+	btn.mouse_entered.connect(_on_district_hover.bind(StringName(district_id), true))
+	btn.mouse_exited.connect(_on_district_hover.bind(StringName(district_id), false))
+	
+	return btn
 
 var _hovered_district: StringName = ""
 
@@ -190,20 +171,23 @@ func _on_district_hover(district_id: StringName, entered: bool) -> void:
 	district_buttons.get(district_id)?.queue_redraw()
 
 func _show_district_info(district_id: StringName) -> void:
+	# district is now a Dictionary
 	var district = LevelManager.get_district(district_id)
-	if not district:
+	if district.is_empty():
 		return
 	
 	var progress = GameManager.get_level_progress(district_id)
 	
-	district_name.text = district.display_name
-	district_desc.text = district.description
-	stat_levels.text = "%d/%d" % [progress.completed, progress.total]
-	stat_stars.text = "%d ★" % progress.stars
+	# Use bracket notation for Dictionary access (Android safe)
+	district_name.text = district.get("name", str(district_id))
+	district_desc.text = district.get("description", "Район Нефтегорска")
+	stat_levels.text = "%d/%d" % [progress.get("completed", 0), progress.get("total", district.get("levels", 4))]
+	stat_stars.text = "%d ★" % progress.get("stars", 0)
 	
-	# Difficulty stars
-	var diff = district.get_difficulty_rating()
-	var diff_stars = "★" * int(diff * 5 + 0.5) + "☆" * (5 - int(diff * 5 + 0.5))
+	# Difficulty based on traffic value (higher = harder)
+	var traffic = district.get("traffic", 50)
+	var diff = traffic / 20  # Convert to 1-5 scale roughly
+	var diff_stars = "★" * int(diff) + "☆" * (5 - int(diff))
 	stat_difficulty.text = diff_stars
 	
 	district_info.visible = true
@@ -213,23 +197,30 @@ func _show_district_info(district_id: StringName) -> void:
 	tween.tween_property(district_info, "modulate:a", 1.0, 0.2)
 
 func _open_level_select(district_id: StringName) -> void:
+	# district is now a Dictionary
 	var district = LevelManager.get_district(district_id)
-	if not district:
+	if district.is_empty():
 		return
 	
 	level_list.clear()
 	
-	for i in range(1, district.levels_per_district + 1):
-		var level_id = LevelData.create_level_id(district_id, i)
-		var level = LevelManager.get_level(level_id)
-		if not level:
+	# Get levels count from district dictionary
+	var levels_count = district.get("levels", 4)
+	var district_name_str = district.get("name", str(district_id))
+	
+	for i in range(1, levels_count + 1):
+		# Create level_id like "business_center_1"
+		var level_id = str(district_id) + "_" + str(i)
+		
+		var level_data = LevelManager.get_level(district_id, i)
+		if level_data.is_empty():
 			continue
 		
 		var unlocked = LevelManager.is_level_unlocked(level_id)
-		var completed_data = GameManager.completed_levels.get(level_id, {"stars": 0})
-		var stars = completed_data.stars
+		var completed_data = GameManager.completed_levels.get(level_id, {})
+		var stars = completed_data.get("stars", 0) if completed_data is Dictionary else 0
 		
-		var item_text = "%s %d" % [district.display_name, i]
+		var item_text = "%s %d" % [district_name_str, i]
 		if stars > 0:
 			item_text += "  ★ %d" % stars
 		if not unlocked:
@@ -245,7 +236,7 @@ func _open_level_select(district_id: StringName) -> void:
 		elif stars >= 3:
 			level_list.set_item_custom_fg_color(idx, Color(0.4, 1, 0.4))
 	
-	level_select_dialog.title = "Район: %s" % district.display_name
+	level_select_dialog.title = "Район: %s" % district_name_str
 	level_select_dialog.popup_centered()
 
 func _on_level_confirm() -> void:
@@ -254,7 +245,7 @@ func _on_level_confirm() -> void:
 		return
 	
 	var idx = selected[0]
-	var level_id = level_list.get_item_metadata(idx)
+	var level_id = level_list.get_item_metadata(idx)  # This is already the full level_id like "business_center_1"
 	
 	if not LevelManager.is_level_unlocked(level_id):
 		AudioManager.sfx_error()
@@ -263,7 +254,14 @@ func _on_level_confirm() -> void:
 	AudioManager.sfx_button_click()
 	level_select_dialog.hide()
 	district_info.visible = false
-	GameManager.start_level(LevelManager.get_level(level_id))
+	
+	# Parse district_id and level_num from level_id
+	var parts = level_id.split("_")
+	if parts.size() >= 2:
+		var district_id = parts[0]
+		var level_num = parts[1].to_int()
+		var level_data = LevelManager.get_level(district_id, level_num)
+		GameManager.start_level(level_data)
 
 func _on_enter_district() -> void:
 	if selected_district != "":

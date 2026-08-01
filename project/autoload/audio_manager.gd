@@ -87,13 +87,16 @@ func _load_audio_resources() -> void:
 # Music control
 func play_music(track_key: String, fade: bool = true) -> void:
 	if not music_tracks.has(track_key):
-		push_warning("AudioManager: Music track not found: %s" % track_key)
+		# No music track defined - silently skip (not an error)
 		return
 	
 	var path = music_tracks[track_key]
+	if not ResourceLoader.exists(path):
+		# Audio file doesn't exist - silently skip
+		return
+	
 	var stream = ResourceLoader.load(path)
 	if not stream:
-		push_warning("AudioManager: Failed to load music: %s" % path)
 		return
 	
 	if fade and music_player.playing and current_music != "":

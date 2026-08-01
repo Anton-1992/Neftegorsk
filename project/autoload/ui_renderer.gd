@@ -142,20 +142,14 @@ func _btn(text, x, y, w, h, bg_color, fs, cb, arg = null):
 	b.size = Vector2(w, h)
 	b.add_theme_font_size_override("font_size", fs)
 	b.add_theme_color_override("font_color", Color(0.95, 0.97, 1.0))
-	if font != null:
-		b.add_theme_font_override("font", font)
-	# NO StyleBoxFlat — use flat style instead
-	var flat = StyleBoxFlat.new()
-	flat.bg_color = Color(0, 0, 0, 0)  # transparent
-	flat.set_corner_radius_all(0)
-	b.add_theme_stylebox_override("normal", flat)
-	b.add_theme_stylebox_override("hover", flat)
-	b.add_theme_stylebox_override("pressed", flat)
-	b.add_theme_stylebox_override("focus", flat)
+	# SAFE: Use theme default style, don't override with StyleBoxFlat
+	# StyleBoxFlat causes crashes on Android (Godot issue #40189)
 	if arg != null:
-		b.pressed.connect(cb.bind(arg))
+		if not b.pressed.is_connected(cb):
+			b.pressed.connect(cb.bind(arg))
 	else:
-		b.pressed.connect(cb)
+		if not b.pressed.is_connected(cb):
+			b.pressed.connect(cb)
 	container.add_child(b)
 	return container
 

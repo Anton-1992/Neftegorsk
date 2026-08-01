@@ -32,3 +32,40 @@ func _initialize_districts() -> void:
 
 func get_district(d_id: String) -> Dictionary:
 	return districts.get(d_id, {})
+
+func get_districts_in_order() -> Array:
+	# Returns districts in unlock order as dictionaries
+	var order = ["business_center", "historic", "residential", "industrial", "waterfront", "suburban", "port", "airport", "university", "tourist"]
+	var result = []
+	for d_id in order:
+		var d = districts.get(d_id, {})
+		if d.size() > 0:
+			result.append(d)
+	return result
+
+func get_level(d_id: String, level_num: int) -> Dictionary:
+	# Returns level data as dictionary
+	var district = districts.get(d_id, {})
+	if district.size() == 0:
+		return {}
+	return {
+		"level_id": d_id + "_" + str(level_num),
+		"district_id": d_id,
+		"level_number": level_num,
+		"display_name": district.get("name", d_id) + " " + str(level_num)
+	}
+
+func is_level_unlocked(level_id: String) -> bool:
+	# Parse level_id like "business_center_1"
+	var parts = level_id.split("_")
+	if parts.size() < 2:
+		return false
+	var d_id = parts[0]
+	var level_num = parts[1].to_int()
+	if level_num == 1:
+		return true  # First level always unlocked
+	var gs = get_node_or_null("/root/GameState")
+	if gs != null:
+		var prev_key = d_id + "_" + str(level_num - 1)
+		return gs.completed_levels.has(prev_key) and gs.completed_levels[prev_key] > 0
+	return false
