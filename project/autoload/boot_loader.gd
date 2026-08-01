@@ -1,8 +1,6 @@
-## BootLoader.gd — v0.1.45: step-by-step boot with diagnostics
-## CRITICAL: Previous v0.1.44 stuck on "Loading..." because _boot_continue()
-## crashed silently. Now each boot step runs in a separate _process() frame,
-## with visible step counter. If a step crashes, user sees which step failed.
-## After 3 seconds, a CONTINUE button appears as fallback.
+## BootLoader.gd — v0.1.46: diagnostic boot — shows exactly where show_main_menu crashes
+## The boot_loader's _process() checks ui.menu_step after calling show_main_menu()
+## If show_main_menu crashes, the menu_step value tells us EXACTLY where.
 extends Control
 
 var font = null
@@ -14,30 +12,21 @@ var _loading_label = null
 var _continue_btn = null
 
 func _ready():
-	# STEP 0: Clear default tscn children
 	_safe_clear_children()
 	boot_step = 1
-	
-	# STEP 1: Force landscape
 	_set_landscape()
 	boot_step = 2
-	
-	# STEP 2: Load font
 	_load_font()
 	boot_step = 3
-	
-	# STEP 3: Show loading screen with step counter
 	_show_loading_screen()
 	boot_step = 4
-	
-	# Start boot in _process() instead of call_deferred
 	_boot_phase = 1
 
 func _process(delta):
 	_boot_timer += delta
 	
 	if _boot_phase == 1:
-		_boot_phase = 2  # Set BEFORE calling to prevent retry loop
+		_boot_phase = 2
 		_update_loading("Step 1: Init GameState...")
 		boot_step = 5
 		var gs = _safe_get_node("/root/GameState")
@@ -48,34 +37,35 @@ func _process(delta):
 		_boot_phase = 3
 	
 	elif _boot_phase == 3:
-		_boot_phase = 4  # Set BEFORE calling
+		_boot_phase = 4
 		boot_step = 7
 		var ui = _safe_get_node("/root/UIRenderer")
 		if ui != null and ui.has_method("show_main_menu"):
 			ui.show_main_menu(self)
 			boot_step = 8
-			_boot_phase = 100  # Done
+			_boot_phase = 100
 			return
 		boot_error = "UIRenderer missing"
 		_update_loading("ERROR: " + boot_error)
 		_boot_phase = 5
 	
-	# Show CONTINUE button after 3 seconds if boot is stuck
-	if _boot_timer > 3.0 and _boot_phase < 100 and _continue_btn == null:
+	elif _boot_phase == 4:
+		# show_main_menu() was called but we're still here — it crashed!
+		# Read menu_step from UIRenderer to see where it crashed
+		var ui = _safe_get_node("/root/UIRenderer")
+		var ms = -1
+		if ui != null:
+			ms = ui.menu_step
+		_update_loading("MENU CRASH! menu_step=" + str(ms))
+		_boot_phase = 5
+	
+	# Show CONTINUE button immediately if boot failed
+	if _boot_phase == 5 and _continue_btn == null:
 		_show_continue_button()
 
 func _show_loading_screen():
-	var sw = 1920
-	var sh = 1080
-	var vp = get_viewport()
-	if vp != null:
-		var rect = vp.get_visible_rect()
-		sw = int(rect.size.x)
-		sh = int(rect.size.y)
-	if sw < 100:
-		sw = 1920
-	if sh < 100:
-		sh = 1080
+	var sw = _get_sw()
+	var sh = _get_sh()
 	
 	var bg = ColorRect.new()
 	bg.color = Color(0.04, 0.05, 0.09)
@@ -85,10 +75,10 @@ func _show_loading_screen():
 	add_child(bg)
 	
 	_loading_label = Label.new()
-	_loading_label.text = "NEFTEGORSK v0.1.45\nLoading..."
+	_loading_label.text = "NEFTEGORSK v0.1.46\nLoading..."
 	_loading_label.position = Vector2(0, sh / 2 - 80)
 	_loading_label.size = Vector2(sw, 160)
-	_loading_label.add_theme_font_size_override("font_size", 32)
+	_loading_label.add_theme_font_size_override("font_size", 28)
 	_loading_label.add_theme_color_override("font_color", Color(1, 0.85, 0.2))
 	_loading_label.horizontal_alignment = 1
 	_loading_label.vertical_alignment = 1
@@ -99,25 +89,14 @@ func _show_loading_screen():
 
 func _update_loading(text):
 	if _loading_label != null and is_instance_valid(_loading_label):
-		_loading_label.text = "NEFTEGORSK v0.1.45\n" + text + "\nStep: " + str(boot_step)
+		_loading_label.text = "NEFTEGORSK v0.1.46\n" + text + "\nStep: " + str(boot_step)
 
 func _show_continue_button():
-	if _continue_btn != null:
-		return
-	var sw = 1920
-	var sh = 1080
-	var vp = get_viewport()
-	if vp != null:
-		var rect = vp.get_visible_rect()
-		sw = int(rect.size.x)
-		sh = int(rect.size.y)
-	if sw < 100:
-		sw = 1920
-	if sh < 100:
-		sh = 1080
+	var sw = _get_sw()
+	var sh = _get_sh()
 	
 	_continue_btn = Button.new()
-	_continue_btn.text = "CONTINUE"
+	_continue_btn.text = "RETRY"
 	_continue_btn.position = Vector2((sw - 400) / 2, sh - 200)
 	_continue_btn.size = Vector2(400, 80)
 	_continue_btn.add_theme_font_size_override("font_size", 32)
@@ -127,13 +106,28 @@ func _show_continue_button():
 	add_child(_continue_btn)
 
 func _on_continue_pressed():
-	# Retry boot
 	_boot_phase = 1
 	_boot_timer = 0.0
 	if _continue_btn != null and is_instance_valid(_continue_btn):
 		remove_child(_continue_btn)
 		_continue_btn.free()
 	_continue_btn = null
+
+func _get_sw():
+	var vp = get_viewport()
+	if vp != null:
+		var rect = vp.get_visible_rect()
+		if rect.size.x >= 100:
+			return int(rect.size.x)
+	return 1920
+
+func _get_sh():
+	var vp = get_viewport()
+	if vp != null:
+		var rect = vp.get_visible_rect()
+		if rect.size.y >= 100:
+			return int(rect.size.y)
+	return 1080
 
 func _safe_clear_children():
 	var children = get_children()

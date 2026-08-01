@@ -1,4 +1,4 @@
-## UIRenderer.gd — v0.1.45: self-contained autoloads + QUIT LEVEL fix
+## UIRenderer.gd — v0.1.46: diagnostic menu_step + QUIT LEVEL fix
 ## QUIT LEVEL has never worked across 10+ versions. Root cause analysis:
 ## 1. _on_quit_level() IS called (proven by Q:66 counter)
 ## 2. But show_main_menu(boot) fails silently when called from quit callback
@@ -73,6 +73,10 @@ var lbl_diag = null
 
 # TRANSITION GUARD — prevents double-call from _input() + Button.pressed
 var _transitioning = false
+
+# DIAGNOSTIC: menu_step tracks which step of show_main_menu() we're at
+# If show_main_menu() crashes, boot_loader reads this to find the crash point
+var menu_step = 0
 
 func _get_gs():
 	if gs != null and not is_instance_valid(gs):
@@ -437,34 +441,47 @@ func _refresh_labels():
 # ==================== TITLE SCREEN ====================
 
 func show_main_menu(boot_node):
-	# Reset transition guard
+	menu_step = 1
 	_transitioning = false
 	menu_calls += 1
+	menu_step = 2
 	boot = boot_node
+	menu_step = 3
 	_load_font()
+	menu_step = 4
 	_update_screen_size()
-	# Cleanup any leftover game state
+	menu_step = 5
 	my_in_game = false
 	cars = []
 	map_view = null
+	menu_step = 6
 	var s = _get_sim()
+	menu_step = 7
 	if s != null:
 		s.in_game = false
+	menu_step = 8
 	_clear()
+	menu_step = 9
 	current_screen = "title"
+	menu_step = 10
 	boot.add_child(_bg(Color(0.04, 0.05, 0.09)))
+	menu_step = 11
 	boot.add_child(_lbl("NEFTEGORSK", 0, 60, SW, 100, 72, Color(1, 0.85, 0.2)))
+	menu_step = 12
 	boot.add_child(_lbl("Fuel Empire", 0, 150, SW, 40, 28, Color(0.6, 0.6, 0.7)))
+	menu_step = 13
 	var play_w = 500
 	var play_h = 120
 	var play_x = (SW - play_w) / 2
 	var play_y = 260
 	boot.add_child(_btn("PLAY", play_x, play_y, play_w, play_h, Color(0.12, 0.45, 0.18), 52, _show_district_select))
+	menu_step = 14
 	var g = _get_gs()
 	var stars_str = "0"
 	if g != null:
 		stars_str = str(g.total_stars)
 	boot.add_child(_lbl("Stars: " + stars_str, 0, play_y + play_h + 20, SW, 30, 20, Color(1, 0.9, 0.3)))
+	menu_step = 15
 	var btn_w = 350
 	var btn_h = 80
 	var btn_gap = 40
@@ -472,11 +489,16 @@ func show_main_menu(boot_node):
 	var btn_x1 = SW / 2 - btn_w - btn_gap / 2
 	var btn_x2 = SW / 2 + btn_gap / 2
 	boot.add_child(_btn("Settings", btn_x1, btn_y, btn_w, btn_h, Color(0.15, 0.15, 0.25), 28, _show_settings))
+	menu_step = 16
 	boot.add_child(_btn("Achievements", btn_x2, btn_y, btn_w, btn_h, Color(0.2, 0.15, 0.08), 28, _show_achievements))
-	boot.add_child(_lbl("v0.1.45", 0, SH - 60, SW, 30, 14, Color(0.3, 0.3, 0.4)))
+	menu_step = 17
+	boot.add_child(_lbl("v0.1.46", 0, SH - 60, SW, 30, 14, Color(0.3, 0.3, 0.4)))
+	menu_step = 18
 	lbl_touch_diag = _lbl("Touch:0", 20, SH - 80, 400, 26, 16, Color(0.5, 0.8, 0.5), false)
 	boot.add_child(lbl_touch_diag)
+	menu_step = 19
 	_add_diag()
+	menu_step = 20
 
 # ==================== SETTINGS ====================
 
