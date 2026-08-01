@@ -1,7 +1,7 @@
-## UIRenderer.gd — v42: Flag-based screen transitions for ALL buttons
-## v41 call_deferred() didn't work on Android. Flag-based approach:
-## button callback sets pending_action, _process() does the actual transition
-## on next frame when button is no longer running its callback.
+## UIRenderer.gd — v43: Direct _input() touch handling for pause screen
+## v42 Button.pressed didn't fire on pause screen. Added _input() fallback
+## that checks touch position against stored button rects.
+## Also: PAUSE moved to top-left, SAVE removed from pause, bigger buttons.
 extends Node
 
 var boot = null
@@ -62,6 +62,11 @@ var quit_count = 0
 var resume_count = 0
 var lbl_pending = null
 
+# Direct touch rects for pause screen buttons (fallback when Button.pressed fails)
+var resume_rect = Rect2()
+var quit_rect = Rect2()
+var pause_rect = Rect2()
+
 func _get_gs():
 	if gs == null:
 		gs = get_node_or_null("/root/GameState")
@@ -102,6 +107,9 @@ func _clear():
 	lbl_revenue = null
 	lbl_fuel_sold = null
 	lbl_pending = null
+	resume_rect = Rect2()
+	quit_rect = Rect2()
+	pause_rect = Rect2()
 	var ch = boot.get_children()
 	for c in ch:
 		boot.remove_child(c)
@@ -159,14 +167,33 @@ func _bg(color = Color(0.06, 0.08, 0.12)):
 # ==================== INPUT ====================
 
 func _input(event):
+	var is_touch = false
+	var pos = Vector2(0, 0)
 	if event is InputEventScreenTouch and event.pressed:
-		touch_count += 1
-		if lbl_touch_diag != null:
-			lbl_touch_diag.text = "T:" + str(touch_count) + " " + str(int(event.position.x)) + "," + str(int(event.position.y))
-	if event is InputEventMouseButton and event.pressed:
-		touch_count += 1
-		if lbl_touch_diag != null:
-			lbl_touch_diag.text = "C:" + str(touch_count) + " " + str(int(event.position.x)) + "," + str(int(event.position.y))
+		is_touch = true
+		pos = event.position
+	elif event is InputEventMouseButton and event.pressed:
+		is_touch = true
+		pos = event.position
+	if not is_touch:
+		return
+	touch_count += 1
+	if lbl_touch_diag != null:
+		lbl_touch_diag.text = "T:" + str(touch_count) + " " + str(int(pos.x)) + "," + str(int(pos.y))
+
+	# Direct touch handling for gameplay PAUSE button
+	if current_screen == "gameplay" and pause_rect.has_point(pos):
+		_on_pause_pressed()
+		return
+
+	# Direct touch handling for pause screen buttons
+	if current_screen == "pause" and pending_action == "":
+		if resume_rect.has_point(pos):
+			_on_resume()
+			return
+		elif quit_rect.has_point(pos):
+			_on_quit_level()
+			return
 
 # ==================== PROCESS ====================
 
@@ -429,7 +456,7 @@ func show_main_menu(boot_node):
 	var btn_x2 = SW / 2 + btn_gap / 2
 	boot.add_child(_btn("Settings", btn_x1, btn_y, btn_w, btn_h, Color(0.15, 0.15, 0.25), 28, _show_settings))
 	boot.add_child(_btn("Achievements", btn_x2, btn_y, btn_w, btn_h, Color(0.2, 0.15, 0.08), 28, _show_achievements))
-	boot.add_child(_lbl("v42", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
+	boot.add_child(_lbl("v43", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
 	lbl_touch_diag = _lbl("Touch:0", 20, SH - 70, 400, 26, 16, Color(0.5, 0.8, 0.5), false)
 	boot.add_child(lbl_touch_diag)
 
@@ -867,15 +894,16 @@ func show_gameplay(boot_node):
 	tb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	boot.add_child(tb)
 
-	# PAUSE button — big, centered in top bar, away from edges
-	var pause_w = 280
-	var pause_h = 65
-	var pause_x = (SW - pause_w) / 2
+	# PAUSE button — top-left corner, small
+	var pause_w = 160
+	var pause_h = 55
+	var pause_x = 10
 	var pause_y = 15
-	boot.add_child(_btn("PAUSE", pause_x, pause_y, pause_w, pause_h, Color(0.5, 0.15, 0.1), 30, _on_pause_pressed))
+	pause_rect = Rect2(pause_x, pause_y, pause_w, pause_h)
+	boot.add_child(_btn("PAUSE", pause_x, pause_y, pause_w, pause_h, Color(0.5, 0.15, 0.1), 24, _on_pause_pressed))
 
 	# Touch diagnostic
-	lbl_touch_diag = _lbl("T:0", 20, 30, 250, 26, 16, Color(0.5, 0.8, 0.5), false)
+	lbl_touch_diag = _lbl("T:0", 10, 72, 250, 26, 16, Color(0.5, 0.8, 0.5), false)
 	boot.add_child(lbl_touch_diag)
 
 	var d_name = ""
@@ -940,11 +968,7 @@ func show_gameplay(boot_node):
 
 	boot.add_child(_lbl("P=You  E=Enemy  B=Building  Gray=Road  Warm=To you  Cool=To enemy", 0, SH - 20, SW, 20, 12, Color(0.3, 0.3, 0.4)))
 
-# ==================== PAUSE SCREEN (v40) ====================
-# Same pattern as Settings, Achievements, etc.
-# _clear() removes the gameplay screen, then we build a pause screen.
-# When RESUME is pressed, show_gameplay(boot) rebuilds the gameplay screen.
-# Game state (my_cash, my_fuel, my_time, etc.) is preserved in ui_renderer variables.
+# ==================== PAUSE SCREEN ====================
 
 func _on_pause_pressed():
 	my_in_game = false
@@ -972,24 +996,22 @@ func _show_pause_screen():
 	boot.add_child(_lbl("Revenue: " + str(my_revenue) + " R  |  Sold: " + str(my_sold) + " L", 0, info_y, SW, 36, 24, Color(0.7, 0.7, 0.8)))
 
 	# Buttons — large, centered, easy to tap
-	var btn_w = 500
-	var btn_h = 80
+	var btn_w = 600
+	var btn_h = 100
 	var btn_x = (SW - btn_w) / 2
-	var btn_y = 440
+	var btn_y = 420
 
 	# RESUME — green, most prominent
-	boot.add_child(_btn("RESUME", btn_x, btn_y, btn_w, btn_h, Color(0.12, 0.5, 0.18), 34, _on_resume))
-	btn_y += 100
-
-	# SAVE GAME
-	boot.add_child(_btn("SAVE GAME", btn_x, btn_y, btn_w, btn_h, Color(0.12, 0.18, 0.12), 30, _on_save))
-	btn_y += 100
+	resume_rect = Rect2(btn_x, btn_y, btn_w, btn_h)
+	boot.add_child(_btn("RESUME", btn_x, btn_y, btn_w, btn_h, Color(0.12, 0.5, 0.18), 38, _on_resume))
+	btn_y += 130
 
 	# QUIT LEVEL — red
-	boot.add_child(_btn("QUIT LEVEL", btn_x, btn_y, btn_w, btn_h, Color(0.5, 0.1, 0.1), 30, _on_quit_level))
+	quit_rect = Rect2(btn_x, btn_y, btn_w, btn_h)
+	boot.add_child(_btn("QUIT LEVEL", btn_x, btn_y, btn_w, btn_h, Color(0.5, 0.1, 0.1), 34, _on_quit_level))
 
 	# Diagnostic label — shows when QUIT/RESUME is pressed (visible on phone)
-	lbl_pending = _lbl("Ready", 0, SH - 85, SW, 30, 20, Color(0.6, 0.6, 0.3))
+	lbl_pending = _lbl("Ready Q:" + str(quit_count) + " R:" + str(resume_count), 0, SH - 85, SW, 30, 20, Color(0.6, 0.6, 0.3))
 	boot.add_child(lbl_pending)
 
 	# Touch diagnostic at bottom
@@ -997,15 +1019,17 @@ func _show_pause_screen():
 	boot.add_child(lbl_touch_diag)
 
 func _on_resume():
-	# Set flag for _process to rebuild gameplay screen
+	if pending_action != "":
+		return
 	resume_count += 1
 	if lbl_pending != null and is_instance_valid(lbl_pending):
-		lbl_pending.text = "RESUME PRESSED:" + str(resume_count)
+		lbl_pending.text = "RESUME:" + str(resume_count)
 	my_in_game = true
 	pending_action = "resume"
 
 func _on_quit_level():
-	# Stop the game and set flag for _process to do the transition
+	if pending_action != "":
+		return
 	my_in_game = false
 	cars = []
 	map_view = null
@@ -1013,9 +1037,8 @@ func _on_quit_level():
 	var s = _get_sim()
 	if s != null:
 		s.in_game = false
-	# Show diagnostic label so user can confirm button press registered
 	if lbl_pending != null and is_instance_valid(lbl_pending):
-		lbl_pending.text = "QUIT PRESSED:" + str(quit_count)
+		lbl_pending.text = "QUIT:" + str(quit_count)
 	pending_action = "quit_level"
 
 # ==================== PRICE / BUY / BUYOUT ====================
