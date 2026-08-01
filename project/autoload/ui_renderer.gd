@@ -1,7 +1,10 @@
-## UIRenderer.gd — v44: Direct call for QUIT LEVEL (same pattern as Settings)
-## v43 flag-based approach: Q:66 means _show_level_select() crashes silently.
-## Settings/Achievements use direct call and work fine. Use same pattern.
-## Also: randomize player station position in map generation.
+## UIRenderer.gd — v0.1.40: Android back gesture = pause, quit goes to menu
+## - NOTIFICATION_WM_GO_BACK_REQUEST opens pause (Android standard)
+## - QUIT LEVEL calls show_main_menu(boot) — same as Settings Back (works!)
+## - No _input() for pause buttons — prevents double-call crash
+## - Save removed everywhere, auto-save on level complete
+## - Cash removed from menu, upgrades only for stars
+## - Level starts with 0 cash, price step 0.5
 extends Node
 
 var boot = null
@@ -19,7 +22,7 @@ var my_grid = 8
 var my_fuel = 5000
 var my_capacity = 5000
 var my_price = 50.0
-var my_cash = 50000
+var my_cash = 0
 var my_pumps = 2
 var my_time = 8.0
 var my_revenue = 0
@@ -56,10 +59,8 @@ var lbl_opp = null
 var lbl_revenue = null
 var lbl_fuel_sold = null
 
-# Direct touch rects for buttons
+# Touch rect for PAUSE button on gameplay screen
 var pause_rect = Rect2()
-var resume_rect = Rect2()
-var quit_rect = Rect2()
 
 func _get_gs():
 	if gs == null:
@@ -101,8 +102,6 @@ func _clear():
 	lbl_revenue = null
 	lbl_fuel_sold = null
 	pause_rect = Rect2()
-	resume_rect = Rect2()
-	quit_rect = Rect2()
 	var ch = boot.get_children()
 	for c in ch:
 		boot.remove_child(c)
@@ -157,6 +156,28 @@ func _bg(color = Color(0.06, 0.08, 0.12)):
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return bg
 
+# ==================== ANDROID BACK GESTURE ====================
+
+func _notification(what):
+	# Android back swipe = open pause menu (standard Android pattern)
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		if current_screen == "gameplay" and my_in_game:
+			_on_pause_pressed()
+		elif current_screen == "pause":
+			_on_resume()
+		elif current_screen == "district_select":
+			show_main_menu(boot)
+		elif current_screen == "level_select":
+			_show_district_select()
+		elif current_screen == "settings":
+			show_main_menu(boot)
+		elif current_screen == "achievements":
+			show_main_menu(boot)
+		elif current_screen == "upgrade_shop":
+			_show_district_select()
+		elif current_screen == "title":
+			get_tree().quit()
+
 # ==================== INPUT ====================
 
 func _input(event):
@@ -173,20 +194,11 @@ func _input(event):
 	touch_count += 1
 	if lbl_touch_diag != null:
 		lbl_touch_diag.text = "T:" + str(touch_count) + " " + str(int(pos.x)) + "," + str(int(pos.y))
-
-	# Direct touch handling for gameplay PAUSE button
+	# Only handle PAUSE button on gameplay screen via _input
+	# Pause screen buttons handled by Button.pressed ONLY (no double-call)
 	if current_screen == "gameplay" and pause_rect.has_point(pos):
 		_on_pause_pressed()
 		return
-
-	# Direct touch handling for pause screen buttons
-	if current_screen == "pause":
-		if resume_rect.has_point(pos):
-			_on_resume()
-			return
-		elif quit_rect.has_point(pos):
-			_on_quit_level()
-			return
 
 # ==================== PROCESS ====================
 
@@ -381,7 +393,7 @@ func _refresh_labels():
 	if lbl_fuel != null:
 		lbl_fuel.text = "Fuel: " + str(my_fuel) + "/" + str(my_capacity) + " L"
 	if lbl_price != null:
-		lbl_price.text = "Price: " + str(int(my_price)) + " R/L"
+		lbl_price.text = "Price: " + str(my_price) + " R/L"
 	if lbl_time != null:
 		var h = int(my_time) % 24
 		lbl_time.text = "Time: " + str(h) + ":00"
@@ -425,12 +437,10 @@ func show_main_menu(boot_node):
 	var play_y = 260
 	boot.add_child(_btn("PLAY", play_x, play_y, play_w, play_h, Color(0.12, 0.45, 0.18), 52, _show_district_select))
 	var g = _get_gs()
-	var cash_str = "0"
 	var stars_str = "0"
 	if g != null:
-		cash_str = str(g.cash)
 		stars_str = str(g.total_stars)
-	boot.add_child(_lbl("Money: " + cash_str + " R  |  Stars: " + stars_str, 0, play_y + play_h + 20, SW, 30, 20, Color(0.5, 0.5, 0.6)))
+	boot.add_child(_lbl("Stars: " + stars_str, 0, play_y + play_h + 20, SW, 30, 20, Color(1, 0.9, 0.3)))
 	var btn_w = 350
 	var btn_h = 80
 	var btn_gap = 40
@@ -439,7 +449,7 @@ func show_main_menu(boot_node):
 	var btn_x2 = SW / 2 + btn_gap / 2
 	boot.add_child(_btn("Settings", btn_x1, btn_y, btn_w, btn_h, Color(0.15, 0.15, 0.25), 28, _show_settings))
 	boot.add_child(_btn("Achievements", btn_x2, btn_y, btn_w, btn_h, Color(0.2, 0.15, 0.08), 28, _show_achievements))
-	boot.add_child(_lbl("v44", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
+	boot.add_child(_lbl("v0.1.40", 0, SH - 40, SW, 30, 14, Color(0.3, 0.3, 0.4)))
 	lbl_touch_diag = _lbl("Touch:0", 20, SH - 70, 400, 26, 16, Color(0.5, 0.8, 0.5), false)
 	boot.add_child(lbl_touch_diag)
 
@@ -470,8 +480,6 @@ func _show_settings():
 		sound_color = Color(0.3, 0.12, 0.12)
 	boot.add_child(_btn(sound_text, cx, cy, 600, 60, sound_color, 24, _toggle_sound))
 	cy += 100
-	boot.add_child(_btn("Save Game", cx, cy, 600, 60, Color(0.12, 0.18, 0.12), 24, _on_save))
-	cy += 80
 	boot.add_child(_btn("Reset Progress", cx, cy, 600, 60, Color(0.35, 0.1, 0.1), 24, _on_reset))
 	cy += 100
 	boot.add_child(_lbl("All progress will be lost on reset!", cx, cy, 600, 30, 16, Color(0.6, 0.4, 0.4)))
@@ -484,15 +492,10 @@ func _toggle_sound():
 	sound_on = not sound_on
 	_show_settings()
 
-func _on_save():
-	var g = _get_gs()
-	if g != null:
-		g.save_game()
-
 func _on_reset():
 	var g = _get_gs()
 	if g != null:
-		g.cash = 50000
+		g.cash = 0
 		g.total_stars = 0
 		g.completed_levels = {}
 		g.unlocked_districts = [StringName("business_center")]
@@ -517,8 +520,6 @@ func _show_achievements():
 		return
 	var y = 100
 	boot.add_child(_lbl("Total Stars: " + str(g.total_stars), cx, y, 700, 30, 24, Color(1, 0.9, 0.3), false))
-	y += 40
-	boot.add_child(_lbl("Cash: " + str(g.cash) + " R", cx, y, 700, 30, 24, Color(0.7, 0.9, 0.7), false))
 	y += 40
 	var total_done = 0
 	var total_levels = 0
@@ -562,16 +563,13 @@ func _show_district_select():
 	boot.add_child(_btn("<< Back", 20, 20, 250, 55, Color(0.2, 0.25, 0.3), 26, show_main_menu.bind(boot)))
 	boot.add_child(_lbl("Select District", 220, 20, SW - 440, 50, 38, Color(1, 0.9, 0.3)))
 	var g = _get_gs()
-	var cash_str = "0"
 	var stars_str = "0"
 	if g != null:
-		cash_str = str(g.cash)
 		stars_str = str(g.total_stars)
 	var col_w = SW / 2 - 40
 	var left_x = 20
 	var right_x = SW / 2 + 20
-	boot.add_child(_lbl("Money: " + cash_str + " R", left_x, 80, col_w / 2, 30, 20, Color(0.7, 0.9, 0.7), false))
-	boot.add_child(_lbl("Stars: " + stars_str, left_x + col_w / 2, 80, col_w / 2, 30, 20, Color(1, 0.9, 0.3), false))
+	boot.add_child(_lbl("Stars: " + stars_str, left_x, 80, col_w, 30, 20, Color(1, 0.9, 0.3), false))
 	var order = ["business_center", "historic", "residential", "industrial", "waterfront", "suburban", "port", "airport", "university", "tourist"]
 	var y_left = 115
 	var y_right = 115
@@ -666,12 +664,11 @@ func _on_level(num):
 
 func _gen_map():
 	var g = _get_gs()
-	my_cash = 50000
+	my_cash = 0
 	my_capacity = 5000
 	my_pumps = 2
 	my_grid = 8
 	if g != null:
-		my_cash = g.cash
 		my_capacity = g.player_fuel_capacity
 		my_pumps = g.player_pumps
 		my_grid = g.district_grid_sizes.get(current_district_id, 8)
@@ -716,7 +713,6 @@ func _gen_map():
 							near = true
 				if near and rng.randf() < 0.55:
 					my_map[y][x] = 2
-	# Place player station — find ALL road tiles near center, pick random one
 	var candidates = []
 	for y in range(sz):
 		for x in range(sz):
@@ -774,7 +770,6 @@ func show_gameplay(boot_node):
 	var g = _get_gs()
 	var sz = my_grid
 
-	# Isometric tile size
 	var top_bar_h = 90
 	var bot_bar_h = 140
 	var map_area_w = SW - 20
@@ -790,7 +785,6 @@ func show_gameplay(boot_node):
 
 	boot.add_child(_bg(Color(0.02, 0.03, 0.06)))
 
-	# ---- ISOMETRIC MAP ----
 	var map_w = sz * TW
 	var map_h = sz * TH + BLOCK_H + 20
 	var map_x = (SW - map_w) / 2
@@ -881,15 +875,12 @@ func show_gameplay(boot_node):
 	tb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	boot.add_child(tb)
 
-	# PAUSE button — top-left corner
+	# PAUSE button — top-left
 	var pause_w = 160
 	var pause_h = 55
-	var pause_x = 10
-	var pause_y = 15
-	pause_rect = Rect2(pause_x, pause_y, pause_w, pause_h)
-	boot.add_child(_btn("PAUSE", pause_x, pause_y, pause_w, pause_h, Color(0.5, 0.15, 0.1), 24, _on_pause_pressed))
+	pause_rect = Rect2(10, 15, pause_w, pause_h)
+	boot.add_child(_btn("PAUSE", 10, 15, pause_w, pause_h, Color(0.5, 0.15, 0.1), 24, _on_pause_pressed))
 
-	# Touch diagnostic
 	lbl_touch_diag = _lbl("T:0", 10, 72, 250, 26, 16, Color(0.5, 0.8, 0.5), false)
 	boot.add_child(lbl_touch_diag)
 
@@ -901,7 +892,7 @@ func show_gameplay(boot_node):
 	boot.add_child(lbl_cash)
 	lbl_fuel = _lbl("Fuel: " + str(my_fuel) + "/" + str(my_capacity) + " L", 500, 48, 300, 26, 18, Color(0.6, 0.8, 1.0), false)
 	boot.add_child(lbl_fuel)
-	lbl_price = _lbl("Price: " + str(int(my_price)) + " R/L", 800, 48, 200, 26, 18, Color(1, 0.9, 0.3), false)
+	lbl_price = _lbl("Price: " + str(my_price) + " R/L", 800, 48, 200, 26, 18, Color(1, 0.9, 0.3), false)
 	boot.add_child(lbl_price)
 	lbl_time = _lbl("Time: 8:00", 1020, 10, 200, 26, 18, Color(0.5, 0.5, 0.6), false)
 	boot.add_child(lbl_time)
@@ -928,17 +919,15 @@ func show_gameplay(boot_node):
 	var gap = 15
 	var bx = 20
 
-	boot.add_child(_btn("Price -5", bx, by, bw, bh2, Color(0.2, 0.15, 0.1), 20, _on_price_down))
+	boot.add_child(_btn("Price -0.5", bx, by, bw, bh2, Color(0.2, 0.15, 0.1), 20, _on_price_down))
 	bx += bw + gap
-	boot.add_child(_btn("Price +5", bx, by, bw, bh2, Color(0.2, 0.15, 0.1), 20, _on_price_up))
+	boot.add_child(_btn("Price +0.5", bx, by, bw, bh2, Color(0.2, 0.15, 0.1), 20, _on_price_up))
 	bx += bw + gap
 	boot.add_child(_btn("Buy Fuel 1000L", bx, by, bw, bh2, Color(0.1, 0.2, 0.15), 20, _on_buy))
 	bx += bw + gap
 	boot.add_child(_btn("Buy MAX", bx, by, bw, bh2, Color(0.1, 0.15, 0.2), 20, _on_buy_max))
 	bx += bw + gap
 	boot.add_child(_btn("Upgrade Shop", bx, by, bw, bh2, Color(0.12, 0.12, 0.2), 20, _show_upgrade_shop))
-	bx += bw + gap
-	boot.add_child(_btn("Save", bx, by, 150, bh2, Color(0.12, 0.18, 0.12), 18, _on_save))
 
 	by += bh2 + 10
 	bx = 20
@@ -953,7 +942,7 @@ func show_gameplay(boot_node):
 			boot.add_child(_btn(ot, bx, by, 500, 40, Color(0.2, 0.08, 0.08), 16, _on_buyout, opp.id))
 			bx += 520
 
-	boot.add_child(_lbl("P=You  E=Enemy  B=Building  Gray=Road  Warm=To you  Cool=To enemy", 0, SH - 20, SW, 20, 12, Color(0.3, 0.3, 0.4)))
+	boot.add_child(_lbl("P=You  E=Enemy  B=Building  Gray=Road  Warm=To you  Cool=To enemy  Swipe back=Pause", 0, SH - 20, SW, 20, 12, Color(0.3, 0.3, 0.4)))
 
 # ==================== PAUSE SCREEN ====================
 
@@ -967,67 +956,59 @@ func _show_pause_screen():
 	current_screen = "pause"
 	boot.add_child(_bg(Color(0.03, 0.04, 0.08)))
 
-	# PAUSED title
 	boot.add_child(_lbl("PAUSED", 0, 80, SW, 80, 56, Color(1, 0.85, 0.2)))
 
-	# Game info
 	var info_y = 180
 	boot.add_child(_lbl("Cash: " + str(my_cash) + " R", 0, info_y, SW, 36, 28, Color(0.7, 0.9, 0.7)))
 	info_y += 45
 	boot.add_child(_lbl("Fuel: " + str(my_fuel) + " / " + str(my_capacity) + " L", 0, info_y, SW, 36, 28, Color(0.6, 0.8, 1.0)))
 	info_y += 45
-	boot.add_child(_lbl("Price: " + str(int(my_price)) + " R/L", 0, info_y, SW, 36, 28, Color(1, 0.9, 0.3)))
+	boot.add_child(_lbl("Price: " + str(my_price) + " R/L", 0, info_y, SW, 36, 28, Color(1, 0.9, 0.3)))
 	info_y += 45
 	boot.add_child(_lbl("Time: " + str(int(my_time) % 24) + ":00", 0, info_y, SW, 36, 28, Color(0.5, 0.5, 0.6)))
 	info_y += 45
 	boot.add_child(_lbl("Revenue: " + str(my_revenue) + " R  |  Sold: " + str(my_sold) + " L", 0, info_y, SW, 36, 24, Color(0.7, 0.7, 0.8)))
 
-	# Buttons — large, centered, easy to tap
 	var btn_w = 600
 	var btn_h = 100
 	var btn_x = (SW - btn_w) / 2
 	var btn_y = 420
 
-	# RESUME — green, most prominent — same pattern as Settings Back button
-	resume_rect = Rect2(btn_x, btn_y, btn_w, btn_h)
+	# RESUME — same pattern as Settings Back button
 	boot.add_child(_btn("RESUME", btn_x, btn_y, btn_w, btn_h, Color(0.12, 0.5, 0.18), 38, _on_resume))
 	btn_y += 130
 
-	# QUIT LEVEL — red — same pattern as Settings Back button
-	quit_rect = Rect2(btn_x, btn_y, btn_w, btn_h)
+	# QUIT LEVEL — calls show_main_menu (same as Settings Back, proven to work!)
 	boot.add_child(_btn("QUIT LEVEL", btn_x, btn_y, btn_w, btn_h, Color(0.5, 0.1, 0.1), 34, _on_quit_level))
 
-	# Touch diagnostic at bottom
-	lbl_touch_diag = _lbl("T:0", 20, SH - 50, 400, 26, 16, Color(0.5, 0.8, 0.5), false)
-	boot.add_child(lbl_touch_diag)
+	boot.add_child(_lbl("Swipe back = Resume", 0, SH - 50, SW, 30, 16, Color(0.4, 0.4, 0.5)))
 
 func _on_resume():
-	# Same pattern as Settings/Achievements — direct call, works on Android
+	# Same pattern as Settings/Achievements — direct call
 	my_in_game = true
 	show_gameplay(boot)
 
 func _on_quit_level():
-	# Same pattern as Settings/Achievements — direct call, works on Android
-	# Go to district select (not level select — simpler, fewer things to crash)
+	# Go to main menu — same as Settings Back button which works
 	my_in_game = false
 	cars = []
 	map_view = null
 	var s = _get_sim()
 	if s != null:
 		s.in_game = false
-	_show_district_select()
+	show_main_menu(boot)
 
 # ==================== PRICE / BUY / BUYOUT ====================
 
 func _on_price_up():
-	my_price = min(my_price + 5.0, 85.0)
+	my_price = min(my_price + 0.5, 85.0)
 	var s = _get_sim()
 	if s != null:
 		s.fuel_price = my_price
 	_refresh_labels()
 
 func _on_price_down():
-	my_price = max(my_price - 5.0, 35.0)
+	my_price = max(my_price - 0.5, 35.0)
 	var s = _get_sim()
 	if s != null:
 		s.fuel_price = my_price
@@ -1124,14 +1105,13 @@ func _show_upgrade_shop():
 	if g == null:
 		boot.add_child(_lbl("GameState not available!", cx, 100, content_w, 40, 24, Color(1, 0.3, 0.3)))
 		return
-	boot.add_child(_lbl("Cash: " + str(g.cash) + " R  |  Stars: " + str(g.total_stars), cx, 80, content_w, 30, 20, Color(0.7, 0.9, 0.7), false))
+	boot.add_child(_lbl("Stars: " + str(g.total_stars), cx, 80, content_w, 30, 20, Color(1, 0.9, 0.3), false))
 	var y = 130
 	for upg in g.upgrade_defs:
 		var uid = upg.get("id", "")
 		var un = upg.get("name", "")
 		var ud = upg.get("desc", "")
 		var us = upg.get("stars", 0)
-		var uc = upg.get("cash", 0)
 		var ucat = upg.get("cat", "")
 		var owned = uid in g.owned_upgrades
 		var cc = Color(0.12, 0.15, 0.2)
@@ -1144,8 +1124,8 @@ func _show_upgrade_shop():
 		if owned:
 			boot.add_child(_lbl("[OWNED] " + un + " - " + ud, cx, y, content_w, 50, 20, Color(0.4, 0.5, 0.4), false))
 		else:
-			var can = (g.cash >= uc and g.total_stars >= us)
-			var bt = un + " - " + ud + " [" + str(uc) + "R, " + str(us) + "*]"
+			var can = (g.total_stars >= us)
+			var bt = un + " - " + ud + " [" + str(us) + "*]"
 			if can:
 				boot.add_child(_btn(bt, cx, y, content_w, 50, cc, 20, _on_buy_upg, uid))
 			else:
@@ -1163,10 +1143,8 @@ func _on_buy_upg(uid):
 			break
 	if ud == null:
 		return
-	var uc = ud.get("cash", 0)
 	var us = ud.get("stars", 0)
-	if g.cash >= uc and g.total_stars >= us:
-		g.cash -= uc
+	if g.total_stars >= us:
 		g.total_stars -= us
 		g.owned_upgrades.append(uid)
 		g.apply_upgrades()
@@ -1191,8 +1169,7 @@ func show_result(won, stars, stars_gained):
 		boot.add_child(_lbl("Stars earned: " + str(stars), 0, 250, SW, 50, 32, Color(1, 0.9, 0.3)))
 		var g = _get_gs()
 		if g != null:
-			boot.add_child(_lbl("Cash: " + str(g.cash) + " R", 0, 310, SW, 40, 24, Color(0.7, 0.9, 0.7)))
-			boot.add_child(_lbl("Total Stars: " + str(g.total_stars), 0, 360, SW, 40, 24, Color(1, 0.9, 0.3)))
+			boot.add_child(_lbl("Total Stars: " + str(g.total_stars), 0, 310, SW, 40, 24, Color(1, 0.9, 0.3)))
 	else:
 		boot.add_child(_bg(Color(0.1, 0.04, 0.04)))
 		boot.add_child(_lbl("BANKRUPT!", 0, 150, SW, 80, 56, Color(1.0, 0.2, 0.2)))
