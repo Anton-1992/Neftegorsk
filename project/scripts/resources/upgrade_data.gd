@@ -36,7 +36,7 @@ enum UpgradeTier {
 
 @export_group("Prerequisites (Tree Structure)")
 @export var prerequisite_ids: Array[StringName] = []  # Must have ALL of these
-@export var alternative_prerequisites: Array[Array[StringName]] = []  # OR groups
+@export var alternative_prerequisites: Array = []  # OR groups (Array of Array[StringName])
 @export var is_root: bool = false           # No prerequisites needed
 @export var unlocks_ids: Array[StringName] = []  # What this unlocks (for UI arrows)
 
