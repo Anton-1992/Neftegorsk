@@ -1,7 +1,5 @@
-## UpgradeManager.gd — v0.1.43: SAFE autoload, NO class_name references
-## Original version used UpgradeData.UpgradeCategory at class level —
-## this caused parse-time crash if UpgradeData class wasn't registered yet.
-## Now completely self-contained: no class_name dependencies.
+## UpgradeManager.gd — v0.1.44: SAFE autoload, NO class_name references
+## v0.1.44: ALL dict access uses bracket notation
 extends Node
 
 signal upgrade_purchased(upgrade_id: StringName)
@@ -25,7 +23,7 @@ func _initialize_upgrades() -> void:
 		{"id": "marketing", "name": "Местная реклама", "desc": "Трафик x1.2", "stars": 1, "cat": "marketing"},
 	]
 	for d in data:
-		upgrades[d.id] = d
+		upgrades[d["id"]] = d
 
 func get_upgrade(upgrade_id: StringName):
 	return upgrades.get(str(upgrade_id))
@@ -39,7 +37,7 @@ func get_available_upgrades(owned: Array, stars: int) -> Array:
 		var upg = upgrades[uid]
 		if uid in owned:
 			continue
-		if stars >= upg.stars:
+		if stars >= upg["stars"]:
 			result.append(upg)
 	return result
 

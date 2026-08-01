@@ -1,5 +1,6 @@
-## Simulation.gd — game mechanics + _process() loop
+## Simulation.gd — v0.1.44: game mechanics + _process() loop
 ## NO class_name, NO @onready, NO gui_input
+## v0.1.44: ALL dict access uses bracket notation — dict["key"] NOT dict.key
 extends Node
 
 var current_district: String = ""
@@ -162,8 +163,8 @@ func _get_avg_opponent_price() -> float:
 	var sum = 0.0
 	var count = 0
 	for opp in opponents:
-		if opp.stations_count > 0:
-			sum += opp.price
+		if opp["stations_count"] > 0:
+			sum += opp["price"]
 			count += 1
 	if count == 0:
 		return WHOLESALE_BASE * 1.2
@@ -171,48 +172,48 @@ func _get_avg_opponent_price() -> float:
 
 func _simulate_opponent_ai(ui: Node) -> void:
 	for opp in opponents:
-		if opp.stations_count <= 0:
+		if opp["stations_count"] <= 0:
 			continue
 		
-		var should_change = randf() < opp.change_freq
+		var should_change = randf() < opp["change_freq"]
 		if not should_change:
 			continue
 		
-		var new_price = opp.price
-		var player_diff = fuel_price - opp.price
+		var new_price = opp["price"]
+		var player_diff = fuel_price - opp["price"]
 		
-		if opp.archetype == "shark":
+		if opp["archetype"] == "shark":
 			if player_diff > 3:
-				new_price = max(fuel_price - 3, WHOLESALE_BASE * (1.0 + opp.margin))
+				new_price = max(fuel_price - 3, WHOLESALE_BASE * (1.0 + opp["margin"]))
 			elif player_diff < -3:
 				new_price = fuel_price + 2
 			else:
 				new_price += (randf() - 0.6) * 3
-		elif opp.archetype == "miser":
+		elif opp["archetype"] == "miser":
 			new_price += (randf() - 0.3) * 1.5
-		elif opp.archetype == "opportunist":
+		elif opp["archetype"] == "opportunist":
 			if abs(player_diff) > 2:
 				new_price = fuel_price + (randf() - 0.5) * 2
 			else:
 				new_price += (randf() - 0.5) * 1.5
-		elif opp.archetype == "tycoon":
-			new_price = (opp.price + fuel_price * 0.5 + WHOLESALE_BASE * 1.2) / 2.7 + (randf() - 0.5) * 2
-		elif opp.archetype == "local":
+		elif opp["archetype"] == "tycoon":
+			new_price = (opp["price"] + fuel_price * 0.5 + WHOLESALE_BASE * 1.2) / 2.7 + (randf() - 0.5) * 2
+		elif opp["archetype"] == "local":
 			new_price += (randf() - 0.4) * 1.0
-		elif opp.archetype == "green":
+		elif opp["archetype"] == "green":
 			new_price += randf() * 1.5
 		
-		var old_price = opp.price
-		new_price = clamp(new_price, WHOLESALE_BASE * (1.0 + opp.margin), MAX_PRICE)
-		opp.price = new_price
+		var old_price = opp["price"]
+		new_price = clamp(new_price, WHOLESALE_BASE * (1.0 + opp["margin"]), MAX_PRICE)
+		opp["price"] = new_price
 		
 		var action = ""
 		if new_price < old_price - 0.5:
-			action = opp.name + " снизил цену до " + str(int(new_price)) + "R!"
+			action = opp["name"] + " снизил цену до " + str(int(new_price)) + "R!"
 		elif new_price > old_price + 0.5:
-			action = opp.name + " повысил цену до " + str(int(new_price)) + "R!"
+			action = opp["name"] + " повысил цену до " + str(int(new_price)) + "R!"
 		else:
-			action = opp.name + " держит цену " + str(int(new_price)) + "R"
+			action = opp["name"] + " держит цену " + str(int(new_price)) + "R"
 		
 		if ui != null and ui.lbl_opp_msg != null:
 			ui.lbl_opp_msg.text = action
@@ -223,7 +224,7 @@ func _simulate_opponent_ai(ui: Node) -> void:
 func _deduct_daily_costs(gs: Node, ui: Node) -> void:
 	var player_station_count = 1
 	for opp in opponents:
-		if opp.stations_count <= 0:
+		if opp["stations_count"] <= 0:
 			player_station_count += 1
 	
 	var total_cost = DAILY_COST_PER_STATION * player_station_count
@@ -238,7 +239,7 @@ func _deduct_daily_costs(gs: Node, ui: Node) -> void:
 func check_win() -> void:
 	var remaining = 0
 	for opp in opponents:
-		if opp.stations_count > 0:
+		if opp["stations_count"] > 0:
 			remaining += 1
 	
 	if remaining == 0:
@@ -292,12 +293,12 @@ func _check_bankruptcy(gs: Node, ui: Node) -> void:
 func calc_buyout(opp: Dictionary) -> int:
 	var base = BASE_BUYOUT + current_level_num * 15000
 	var gs = get_node_or_null("/root/GameState")
-	var price = int(base * opp.loyalty * gs.negotiation_factor)
+	var price = int(base * opp["loyalty"] * gs.negotiation_factor)
 	return price
 
 func find_opponent(opp_id: int):
 	for opp in opponents:
-		if opp.id == opp_id:
+		if opp["id"] == opp_id:
 			return opp
 	return null
 
@@ -363,18 +364,18 @@ func _generate_map(d_id: String, level_num: int) -> void:
 				var opp = {
 					"id": i,
 					"archetype": archetype,
-					"name": arch_data.name,
+					"name": arch_data["name"],
 					"pos": Vector2i(ox, oy),
-					"price": WHOLESALE_BASE * (1.0 + arch_data.margin) * arch_data.price_mod,
+					"price": WHOLESALE_BASE * (1.0 + arch_data["margin"]) * arch_data["price_mod"],
 					"cash": 30000 + level_num * 10000,
-					"loyalty": arch_data.loyalty,
+					"loyalty": arch_data["loyalty"],
 					"stations_count": 1,
-					"color": arch_data.color,
-					"msg": arch_data.msg,
-					"aggression": arch_data.aggression,
-					"price_mod": arch_data.price_mod,
-					"margin": arch_data.margin,
-					"change_freq": arch_data.change_freq,
+					"color": arch_data["color"],
+					"msg": arch_data["msg"],
+					"aggression": arch_data["aggression"],
+					"price_mod": arch_data["price_mod"],
+					"margin": arch_data["margin"],
+					"change_freq": arch_data["change_freq"],
 				}
 				opponents.append(opp)
 				break

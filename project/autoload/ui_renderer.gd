@@ -1,4 +1,4 @@
-## UIRenderer.gd — v0.1.43: self-contained autoloads + QUIT LEVEL fix
+## UIRenderer.gd — v0.1.44: self-contained autoloads + QUIT LEVEL fix
 ## QUIT LEVEL has never worked across 10+ versions. Root cause analysis:
 ## 1. _on_quit_level() IS called (proven by Q:66 counter)
 ## 2. But show_main_menu(boot) fails silently when called from quit callback
@@ -280,7 +280,7 @@ func _spawn_car():
 	var stations = []
 	stations.append(player_pos)
 	for opp in my_opponents:
-		if opp.stations_count > 0:
+		if opp["stations_count"] > 0:
 			for y in range(sz):
 				for x in range(sz):
 					if my_map.size() > y and my_map[y].size() > x and my_map[y][x] == 6:
@@ -391,12 +391,12 @@ func _sim_tick():
 		if g != null:
 			g.cash = my_cash
 	for opp in my_opponents:
-		if opp.stations_count > 0 and randf() < 0.3:
-			opp.price += (randf() - 0.5) * 3.0
-			if opp.price < 40.0:
-				opp.price = 40.0
-			if opp.price > 80.0:
-				opp.price = 80.0
+		if opp["stations_count"] > 0 and randf() < 0.3:
+			opp["price"] += (randf() - 0.5) * 3.0
+			if opp["price"] < 40.0:
+				opp["price"] = 40.0
+			if opp["price"] > 80.0:
+				opp["price"] = 80.0
 	if my_cash < -10000:
 		my_in_game = false
 		show_result(false, 0, 0)
@@ -430,8 +430,8 @@ func _refresh_labels():
 	if lbl_opp != null:
 		var t = ""
 		for opp in my_opponents:
-			if opp.stations_count > 0:
-				t += opp.name + " Price:" + str(int(opp.price)) + "R  "
+			if opp["stations_count"] > 0:
+				t += opp["name"] + " Price:" + str(int(opp["price"])) + "R  "
 		lbl_opp.text = t
 
 # ==================== TITLE SCREEN ====================
@@ -473,7 +473,7 @@ func show_main_menu(boot_node):
 	var btn_x2 = SW / 2 + btn_gap / 2
 	boot.add_child(_btn("Settings", btn_x1, btn_y, btn_w, btn_h, Color(0.15, 0.15, 0.25), 28, _show_settings))
 	boot.add_child(_btn("Achievements", btn_x2, btn_y, btn_w, btn_h, Color(0.2, 0.15, 0.08), 28, _show_achievements))
-	boot.add_child(_lbl("v0.1.43", 0, SH - 60, SW, 30, 14, Color(0.3, 0.3, 0.4)))
+	boot.add_child(_lbl("v0.1.44", 0, SH - 60, SW, 30, 14, Color(0.3, 0.3, 0.4)))
 	lbl_touch_diag = _lbl("Touch:0", 20, SH - 80, 400, 26, 16, Color(0.5, 0.8, 0.5), false)
 	boot.add_child(lbl_touch_diag)
 	_add_diag()
@@ -963,11 +963,11 @@ func show_gameplay(boot_node):
 	boot.add_child(lbl_opp)
 	by += 24
 	for opp in my_opponents:
-		if opp.stations_count > 0:
+		if opp["stations_count"] > 0:
 			var bp = 60000 + current_level_num * 15000
-			bp = int(bp * opp.loyalty)
-			var ot = opp.name + " " + str(int(opp.price)) + "R/L BUYOUT:" + str(bp) + "R"
-			boot.add_child(_btn(ot, bx, by, 500, 40, Color(0.2, 0.08, 0.08), 16, _on_buyout, opp.id))
+			bp = int(bp * opp["loyalty"])
+			var ot = opp["name"] + " " + str(int(opp["price"])) + "R/L BUYOUT:" + str(bp) + "R"
+			boot.add_child(_btn(ot, bx, by, 500, 40, Color(0.2, 0.08, 0.08), 16, _on_buyout, opp["id"]))
 			bx += 520
 
 	boot.add_child(_lbl("P=You  E=Enemy  B=Building  Gray=Road", 0, SH - 20, SW, 20, 12, Color(0.3, 0.3, 0.4)))
@@ -1109,13 +1109,13 @@ func _on_buy_max():
 func _on_buyout(opp_id):
 	var bp = 60000 + current_level_num * 15000
 	for opp in my_opponents:
-		if opp.id == opp_id and opp.stations_count > 0:
-			bp = int(bp * opp.loyalty)
+		if opp["id"] == opp_id and opp["stations_count"] > 0:
+			bp = int(bp * opp["loyalty"])
 			if my_cash >= bp:
 				my_cash -= bp
-				opp.stations_count = 0
+				opp["stations_count"] = 0
 				if lbl_msg != null:
-					lbl_msg.text = "Bought out " + opp.name + " for " + str(bp) + "R!"
+					lbl_msg.text = "Bought out " + opp["name"] + " for " + str(bp) + "R!"
 				var remaining = 0
 				for o in my_opponents:
 					if o.stations_count > 0:

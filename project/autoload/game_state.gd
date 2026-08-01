@@ -1,5 +1,8 @@
-## GameState.gd — holds all game state, save/load
+## GameState.gd — v0.1.44: holds all game state, save/load
 ## NO class_name, NO @onready, NO gui_input — Android safe
+## v0.1.44: ALL dict access uses bracket notation — data["key"] NOT data.key
+## CRITICAL: dot notation on Dictionary can conflict with built-in properties
+## on Android runtime (e.g., data.name conflicts with Node.name)
 extends Node
 
 var cash: int = 50000
@@ -58,12 +61,14 @@ func _init_district_data() -> void:
 		if not d.has(d_id):
 			continue
 		var data = d[d_id]
-		district_names[d_id] = data.name
-		district_levels_count[d_id] = data.levels
-		district_req_stars[d_id] = data.stars_req
-		district_traffic[d_id] = data.traffic
-		district_grid_sizes[d_id] = data.grid
-		district_colors[d_id] = data.color
+		# CRITICAL: Use bracket notation ONLY — dot notation on Dictionary
+		# conflicts with built-in properties (name, color) on Android runtime
+		district_names[d_id] = data["name"]
+		district_levels_count[d_id] = data["levels"]
+		district_req_stars[d_id] = data["stars_req"]
+		district_traffic[d_id] = data["traffic"]
+		district_grid_sizes[d_id] = data["grid"]
+		district_colors[d_id] = data["color"]
 
 func _init_upgrade_defs() -> void:
 	upgrade_defs = [
@@ -139,22 +144,25 @@ func _load_save() -> void:
 	var data = json.data
 	if data == null:
 		return
+	# CRITICAL: Use bracket notation ONLY for dict access on Android
 	if data.has("cash"):
-		cash = int(data.cash)
+		cash = int(data["cash"])
 	if data.has("total_stars"):
-		total_stars = int(data.total_stars)
+		total_stars = int(data["total_stars"])
 	if data.has("player_level"):
-		player_level = int(data.player_level)
+		player_level = int(data["player_level"])
 	if data.has("completed_levels"):
 		completed_levels = {}
-		var cl = data.completed_levels
+		var cl = data["completed_levels"]
 		for key in cl:
 			completed_levels[key] = int(cl[key])
 	if data.has("unlocked_districts"):
 		unlocked_districts = []
-		for d in data.unlocked_districts:
+		var ud = data["unlocked_districts"]
+		for d in ud:
 			unlocked_districts.append(StringName(str(d)))
 	if data.has("owned_upgrades"):
 		owned_upgrades = []
-		for u in data.owned_upgrades:
+		var ou = data["owned_upgrades"]
+		for u in ou:
 			owned_upgrades.append(str(u))

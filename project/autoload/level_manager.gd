@@ -28,7 +28,7 @@ func _initialize_districts() -> void:
 		{"id": "tourist", "name": "Туристический район", "levels": 2, "stars_req": 54, "traffic": 50, "grid": 8},
 	]
 	for d in data:
-		districts[d.id] = d
+		districts[d["id"]] = d
 
 func get_district(d_id: String) -> Dictionary:
 	return districts.get(d_id, {})
