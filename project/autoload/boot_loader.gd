@@ -75,7 +75,7 @@ func _show_loading_screen():
 	add_child(bg)
 	
 	_loading_label = Label.new()
-	_loading_label.text = "NEFTEGORSK v0.1.46\nLoading..."
+	_loading_label.text = "NEFTEGORSK v0.1.47\nLoading..."
 	_loading_label.position = Vector2(0, sh / 2 - 80)
 	_loading_label.size = Vector2(sw, 160)
 	_loading_label.add_theme_font_size_override("font_size", 28)
@@ -89,7 +89,7 @@ func _show_loading_screen():
 
 func _update_loading(text):
 	if _loading_label != null and is_instance_valid(_loading_label):
-		_loading_label.text = "NEFTEGORSK v0.1.46\n" + text + "\nStep: " + str(boot_step)
+		_loading_label.text = "NEFTEGORSK v0.1.47\n" + text + "\nStep: " + str(boot_step)
 
 func _show_continue_button():
 	var sw = _get_sw()

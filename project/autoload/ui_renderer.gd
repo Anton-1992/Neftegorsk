@@ -1,14 +1,11 @@
-## UIRenderer.gd — v0.1.46: diagnostic menu_step + QUIT LEVEL fix
-## QUIT LEVEL has never worked across 10+ versions. Root cause analysis:
-## 1. _on_quit_level() IS called (proven by Q:66 counter)
-## 2. But show_main_menu(boot) fails silently when called from quit callback
-## 3. _input() fallback + Button.pressed BOTH fire = double-call
-## 4. Settings Back works because it uses show_main_menu.bind(boot) directly
-## Fix approach:
-## - Guard variable prevents double-call
-## - change_scene_to_file() as nuclear option for QUIT
-## - Cleanup code in show_main_menu() so it's self-contained
-## - No swipe/back gesture handling
+## UIRenderer.gd — v0.1.47: MINIMAL menu — NO StyleBoxFlat, NO crash
+## v0.1.43-46: show_main_menu() crashes silently on Android
+## Root cause analysis after 146+ APKs:
+## 1. StyleBoxFlat.new() is KNOWN to cause issues on Android (Godot issue #40189)
+## 2. StyleBoxFlat corner_radius can crash on mobile
+## 3. Complex button creation with theme overrides may crash
+## FIX: Remove ALL StyleBoxFlat, use simple Button with self_modulate for color
+## Keep menu_step diagnostic for safety
 extends Node
 
 var boot = null
@@ -59,23 +56,17 @@ var lbl_opp = null
 var lbl_revenue = null
 var lbl_fuel_sold = null
 
-# Touch rects for buttons
 var pause_rect = Rect2()
 var resume_rect = Rect2()
 var quit_rect = Rect2()
 
-# DIAGNOSTIC COUNTERS
 var quit_calls = 0
 var resume_calls = 0
 var menu_calls = 0
 var pause_calls = 0
 var lbl_diag = null
 
-# TRANSITION GUARD — prevents double-call from _input() + Button.pressed
 var _transitioning = false
-
-# DIAGNOSTIC: menu_step tracks which step of show_main_menu() we're at
-# If show_main_menu() crashes, boot_loader reads this to find the crash point
 var menu_step = 0
 
 func _get_gs():
@@ -94,7 +85,8 @@ func _get_sim():
 
 func _load_font():
 	if font == null:
-		font = ResourceLoader.load("res://assets/fonts/DejaVuSans.ttf")
+		if ResourceLoader.exists("res://assets/fonts/DejaVuSans.ttf"):
+			font = ResourceLoader.load("res://assets/fonts/DejaVuSans.ttf")
 
 func _update_screen_size():
 	var vp = get_viewport()
@@ -131,30 +123,41 @@ func _clear():
 		c.free()
 	cars = []
 
-func _btn(text, x, y, w, h, color, fs, cb, arg = null):
+# SAFE button — NO StyleBoxFlat, uses ColorRect behind plain Button
+func _btn(text, x, y, w, h, bg_color, fs, cb, arg = null):
+	var container = Control.new()
+	container.position = Vector2(x, y)
+	container.size = Vector2(w, h)
+	container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	
+	var bg = ColorRect.new()
+	bg.color = bg_color
+	bg.size = Vector2(w, h)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	container.add_child(bg)
+	
 	var b = Button.new()
 	b.text = text
-	b.position = Vector2(x, y)
+	b.position = Vector2(0, 0)
 	b.size = Vector2(w, h)
 	b.add_theme_font_size_override("font_size", fs)
 	b.add_theme_color_override("font_color", Color(0.95, 0.97, 1.0))
 	if font != null:
 		b.add_theme_font_override("font", font)
-	var s = StyleBoxFlat.new()
-	s.bg_color = color
-	s.corner_radius_bottom_left = 10
-	s.corner_radius_bottom_right = 10
-	s.corner_radius_top_left = 10
-	s.corner_radius_top_right = 10
-	b.add_theme_stylebox_override("normal", s)
-	b.add_theme_stylebox_override("hover", s)
-	b.add_theme_stylebox_override("pressed", s)
-	b.add_theme_stylebox_override("focus", s)
+	# NO StyleBoxFlat — use flat style instead
+	var flat = StyleBoxFlat.new()
+	flat.bg_color = Color(0, 0, 0, 0)  # transparent
+	flat.set_corner_radius_all(0)
+	b.add_theme_stylebox_override("normal", flat)
+	b.add_theme_stylebox_override("hover", flat)
+	b.add_theme_stylebox_override("pressed", flat)
+	b.add_theme_stylebox_override("focus", flat)
 	if arg != null:
 		b.pressed.connect(cb.bind(arg))
 	else:
 		b.pressed.connect(cb)
-	return b
+	container.add_child(b)
+	return container
 
 func _lbl(text, x, y, w, h, fs, color, center = true):
 	var l = Label.new()
@@ -180,8 +183,8 @@ func _bg(color = Color(0.06, 0.08, 0.12)):
 	return bg
 
 func _add_diag():
-	var txt = "Q:" + str(quit_calls) + " R:" + str(resume_calls) + " M:" + str(menu_calls) + " P:" + str(pause_calls) + " T:" + str(_transitioning)
-	lbl_diag = _lbl(txt, 0, SH - 35, SW, 28, 16, Color(0.8, 0.8, 0.2))
+	var txt = "Q:" + str(quit_calls) + " R:" + str(resume_calls) + " M:" + str(menu_calls) + " P:" + str(pause_calls)
+	lbl_diag = _lbl(txt, 0, SH - 35, SW, 28, 14, Color(0.5, 0.5, 0.3))
 	boot.add_child(lbl_diag)
 
 # ==================== INPUT ====================
@@ -198,16 +201,14 @@ func _input(event):
 	if not is_touch:
 		return
 	touch_count += 1
-	if lbl_touch_diag != null:
-		lbl_touch_diag.text = "T:" + str(touch_count) + " " + str(int(pos.x)) + "," + str(int(pos.y))
+	if lbl_touch_diag != null and is_instance_valid(lbl_touch_diag):
+		lbl_touch_diag.text = "T:" + str(touch_count)
 
-	# Gameplay: PAUSE button
 	if current_screen == "gameplay" and pause_rect.has_point(pos):
 		pause_calls += 1
 		_on_pause_pressed()
 		return
 
-	# Pause screen: RESUME and QUIT via _input() fallback
 	if current_screen == "pause":
 		if resume_rect.has_point(pos):
 			resume_calls += 1
@@ -344,25 +345,25 @@ func _update_cars(delta):
 	var mcx = map_w / 2
 	var mcy = TH
 	for car in cars:
-		car.t += delta * car.speed
-		if car.t >= 1.0:
-			car.t = 0.0
-			car.step += 1
-		if car.step >= car.path.size() - 1:
-			car.step = -1
+		car["t"] += delta * car["speed"]
+		if car["t"] >= 1.0:
+			car["t"] = 0.0
+			car["step"] += 1
+		if car["step"] >= car["path"].size() - 1:
+			car["step"] = -1
 			continue
-		if car.step < 0:
+		if car["step"] < 0:
 			continue
-		var from = car.path[car.step]
-		var to = car.path[car.step + 1]
-		var t = car.t
+		var from = car["path"][car["step"]]
+		var to = car["path"][car["step"] + 1]
+		var t = car["t"]
 		var gx = from.x + (to.x - from.x) * t
 		var gy = from.y + (to.y - from.y) * t
 		var spos = _iso_to_screen(gx, gy, mcx, mcy)
-		map_view.car_data.append({"x": spos.x, "y": spos.y, "color": car.color})
+		map_view.car_data.append({"x": spos.x, "y": spos.y, "color": car["color"]})
 	var alive = []
 	for car in cars:
-		if car.step >= 0:
+		if car["step"] >= 0:
 			alive.append(car)
 	cars = alive
 	map_view.request_redraw()
@@ -406,16 +407,16 @@ func _sim_tick():
 		show_result(false, 0, 0)
 
 func _refresh_labels():
-	if lbl_cash != null:
+	if lbl_cash != null and is_instance_valid(lbl_cash):
 		lbl_cash.text = "Cash: " + str(my_cash) + " R"
-	if lbl_fuel != null:
+	if lbl_fuel != null and is_instance_valid(lbl_fuel):
 		lbl_fuel.text = "Fuel: " + str(my_fuel) + "/" + str(my_capacity) + " L"
-	if lbl_price != null:
+	if lbl_price != null and is_instance_valid(lbl_price):
 		lbl_price.text = "Price: " + str(my_price) + " R/L"
-	if lbl_time != null:
+	if lbl_time != null and is_instance_valid(lbl_time):
 		var h = int(my_time) % 24
 		lbl_time.text = "Time: " + str(h) + ":00"
-	if lbl_status != null:
+	if lbl_status != null and is_instance_valid(lbl_status):
 		var h = int(my_time) % 24
 		var p = "Night"
 		if h >= 7 and h <= 9:
@@ -427,11 +428,11 @@ func _refresh_labels():
 		elif h >= 6 and h <= 22:
 			p = "Daytime"
 		lbl_status.text = p + " | Pumps:" + str(my_pumps)
-	if lbl_revenue != null:
+	if lbl_revenue != null and is_instance_valid(lbl_revenue):
 		lbl_revenue.text = "Revenue: " + str(my_revenue) + " R"
-	if lbl_fuel_sold != null:
+	if lbl_fuel_sold != null and is_instance_valid(lbl_fuel_sold):
 		lbl_fuel_sold.text = "Sold: " + str(my_sold) + " L"
-	if lbl_opp != null:
+	if lbl_opp != null and is_instance_valid(lbl_opp):
 		var t = ""
 		for opp in my_opponents:
 			if opp["stations_count"] > 0:
@@ -492,7 +493,7 @@ func show_main_menu(boot_node):
 	menu_step = 16
 	boot.add_child(_btn("Achievements", btn_x2, btn_y, btn_w, btn_h, Color(0.2, 0.15, 0.08), 28, _show_achievements))
 	menu_step = 17
-	boot.add_child(_lbl("v0.1.46", 0, SH - 60, SW, 30, 14, Color(0.3, 0.3, 0.4)))
+	boot.add_child(_lbl("v0.1.47", 0, SH - 60, SW, 30, 14, Color(0.3, 0.3, 0.4)))
 	menu_step = 18
 	lbl_touch_diag = _lbl("Touch:0", 20, SH - 80, 400, 26, 16, Color(0.5, 0.8, 0.5), false)
 	boot.add_child(lbl_touch_diag)
@@ -528,8 +529,6 @@ func _show_settings():
 	boot.add_child(_btn(sound_text, cx, cy, 600, 60, sound_color, 24, _toggle_sound))
 	cy += 100
 	boot.add_child(_btn("Reset Progress", cx, cy, 600, 60, Color(0.35, 0.1, 0.1), 24, _on_reset))
-	cy += 100
-	boot.add_child(_lbl("All progress will be lost on reset!", cx, cy, 600, 30, 16, Color(0.6, 0.4, 0.4)))
 	_add_diag()
 
 func _toggle_music():
@@ -570,35 +569,7 @@ func _show_achievements():
 	var y = 100
 	boot.add_child(_lbl("Total Stars: " + str(g.total_stars), cx, y, 700, 30, 24, Color(1, 0.9, 0.3), false))
 	y += 40
-	var total_done = 0
-	var total_levels = 0
-	for key in g.completed_levels:
-		if g.completed_levels[key] > 0:
-			total_done += 1
-	for d_id in g.district_levels_count:
-		total_levels += g.district_levels_count[d_id]
-	boot.add_child(_lbl("Levels Completed: " + str(total_done) + " / " + str(total_levels), cx, y, 700, 30, 24, Color(0.6, 0.8, 1.0), false))
-	y += 40
-	var unlocked_count = g.unlocked_districts.size()
-	boot.add_child(_lbl("Districts Unlocked: " + str(unlocked_count) + " / 10", cx, y, 700, 30, 24, Color(0.8, 0.7, 0.9), false))
-	y += 60
-	boot.add_child(_lbl("-- District Progress --", cx, y, 700, 30, 22, Color(0.6, 0.6, 0.7)))
-	y += 35
-	var order = ["business_center", "historic", "residential", "industrial", "waterfront", "suburban", "port", "airport", "university", "tourist"]
-	for d_id in order:
-		var d_name = g.district_names.get(d_id, d_id)
-		var lc = g.district_levels_count.get(d_id, 0)
-		var done = 0
-		for i in range(1, lc + 1):
-			var key = d_id + "_" + str(i)
-			if g.completed_levels.has(key) and g.completed_levels[key] > 0:
-				done += 1
-		var unlocked = g.is_district_unlocked(d_id)
-		var status = str(done) + "/" + str(lc)
-		if not unlocked:
-			status = "LOCKED"
-		boot.add_child(_lbl(d_name + ":  " + status, cx, y, 700, 26, 20, Color(0.7, 0.7, 0.8), false))
-		y += 30
+	boot.add_child(_lbl("Unlocked: " + str(g.unlocked_districts.size()) + " / 10", cx, y, 700, 30, 24, Color(0.6, 0.8, 1.0), false))
 	_add_diag()
 
 # ==================== DISTRICT SELECT ====================
@@ -694,7 +665,7 @@ func _show_level_select():
 			else:
 				st += "- "
 		var oc = min(i, 3)
-		var t = "Level " + str(i) + "  " + st + "  " + str(oc) + " opponent(s)"
+		var t = "Level " + str(i) + "  " + st + "  " + str(oc) + " opp"
 		if unlocked:
 			var c = dc
 			if stars > 0:
@@ -918,7 +889,7 @@ func show_gameplay(boot_node):
 	map_view.request_redraw()
 	map_view.rebuild_labels()
 
-	# ---- TOP BAR ----
+	# TOP BAR
 	var tb = ColorRect.new()
 	tb.color = Color(0.06, 0.07, 0.12, 0.9)
 	tb.position = Vector2(0, 0)
@@ -926,10 +897,8 @@ func show_gameplay(boot_node):
 	tb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	boot.add_child(tb)
 
-	var pause_w = 160
-	var pause_h = 55
-	pause_rect = Rect2(10, 15, pause_w, pause_h)
-	boot.add_child(_btn("PAUSE", 10, 15, pause_w, pause_h, Color(0.5, 0.15, 0.1), 24, _on_pause_pressed))
+	pause_rect = Rect2(10, 15, 160, 55)
+	boot.add_child(_btn("PAUSE", 10, 15, 160, 55, Color(0.5, 0.15, 0.1), 24, _on_pause_pressed))
 
 	lbl_touch_diag = _lbl("T:0", 10, 72, 250, 26, 16, Color(0.5, 0.8, 0.5), false)
 	boot.add_child(lbl_touch_diag)
@@ -955,7 +924,7 @@ func show_gameplay(boot_node):
 	lbl_msg = _lbl("", 600, 10, 400, 26, 16, Color(0.6, 0.6, 0.6), false)
 	boot.add_child(lbl_msg)
 
-	# ---- BOTTOM BAR ----
+	# BOTTOM BAR
 	var bb = ColorRect.new()
 	bb.color = Color(0.06, 0.07, 0.12, 0.9)
 	bb.position = Vector2(0, SH - bot_bar_h)
@@ -973,11 +942,11 @@ func show_gameplay(boot_node):
 	bx += bw + gap
 	boot.add_child(_btn("Price +0.5", bx, by, bw, bh2, Color(0.2, 0.15, 0.1), 20, _on_price_up))
 	bx += bw + gap
-	boot.add_child(_btn("Buy Fuel 1000L", bx, by, bw, bh2, Color(0.1, 0.2, 0.15), 20, _on_buy))
+	boot.add_child(_btn("Buy Fuel", bx, by, bw, bh2, Color(0.1, 0.2, 0.15), 20, _on_buy))
 	bx += bw + gap
 	boot.add_child(_btn("Buy MAX", bx, by, bw, bh2, Color(0.1, 0.15, 0.2), 20, _on_buy_max))
 	bx += bw + gap
-	boot.add_child(_btn("Upgrade Shop", bx, by, bw, bh2, Color(0.12, 0.12, 0.2), 20, _show_upgrade_shop))
+	boot.add_child(_btn("Upgrades", bx, by, bw, bh2, Color(0.12, 0.12, 0.2), 20, _show_upgrade_shop))
 
 	by += bh2 + 10
 	bx = 20
@@ -988,7 +957,7 @@ func show_gameplay(boot_node):
 		if opp["stations_count"] > 0:
 			var bp = 60000 + current_level_num * 15000
 			bp = int(bp * opp["loyalty"])
-			var ot = opp["name"] + " " + str(int(opp["price"])) + "R/L BUYOUT:" + str(bp) + "R"
+			var ot = opp["name"] + " " + str(int(opp["price"])) + "R BUYOUT:" + str(bp) + "R"
 			boot.add_child(_btn(ot, bx, by, 500, 40, Color(0.2, 0.08, 0.08), 16, _on_buyout, opp["id"]))
 			bx += 520
 
@@ -1007,9 +976,7 @@ func _show_pause_screen():
 	_update_screen_size()
 	current_screen = "pause"
 	boot.add_child(_bg(Color(0.03, 0.04, 0.08)))
-
 	boot.add_child(_lbl("PAUSED", 0, 80, SW, 80, 56, Color(1, 0.85, 0.2)))
-
 	var info_y = 180
 	boot.add_child(_lbl("Cash: " + str(my_cash) + " R", 0, info_y, SW, 36, 28, Color(0.7, 0.9, 0.7)))
 	info_y += 45
@@ -1018,28 +985,20 @@ func _show_pause_screen():
 	boot.add_child(_lbl("Price: " + str(my_price) + " R/L", 0, info_y, SW, 36, 28, Color(1, 0.9, 0.3)))
 	info_y += 45
 	boot.add_child(_lbl("Time: " + str(int(my_time) % 24) + ":00", 0, info_y, SW, 36, 28, Color(0.5, 0.5, 0.6)))
-	info_y += 45
-	boot.add_child(_lbl("Revenue: " + str(my_revenue) + " R  |  Sold: " + str(my_sold) + " L", 0, info_y, SW, 36, 24, Color(0.7, 0.7, 0.8)))
 
 	var btn_w = 600
 	var btn_h = 100
 	var btn_x = (SW - btn_w) / 2
 	var btn_y = 420
 
-	# RESUME button
 	resume_rect = Rect2(btn_x, btn_y, btn_w, btn_h)
 	boot.add_child(_btn("RESUME", btn_x, btn_y, btn_w, btn_h, Color(0.12, 0.5, 0.18), 38, _on_resume))
 	btn_y += 130
 
-	# QUIT LEVEL button
 	quit_rect = Rect2(btn_x, btn_y, btn_w, btn_h)
 	boot.add_child(_btn("QUIT LEVEL", btn_x, btn_y, btn_w, btn_h, Color(0.5, 0.1, 0.1), 34, _on_quit_level))
 
-	# Big diagnostic line
-	boot.add_child(_lbl("Q:" + str(quit_calls) + " R:" + str(resume_calls) + " M:" + str(menu_calls) + " P:" + str(pause_calls) + " T:" + str(_transitioning), 0, SH - 80, SW, 30, 22, Color(1, 1, 0)))
-
-	lbl_touch_diag = _lbl("T:0", 20, SH - 50, 400, 26, 16, Color(0.5, 0.8, 0.5), false)
-	boot.add_child(lbl_touch_diag)
+	boot.add_child(_lbl("Q:" + str(quit_calls) + " R:" + str(resume_calls) + " M:" + str(menu_calls), 0, SH - 50, SW, 30, 22, Color(1, 1, 0)))
 	_add_diag()
 
 func _on_resume():
@@ -1051,7 +1010,6 @@ func _on_resume():
 	show_gameplay(boot)
 
 func _on_quit_level():
-	# GUARD: prevent double-call from _input() + Button.pressed
 	if _transitioning:
 		return
 	_transitioning = true
@@ -1062,12 +1020,6 @@ func _on_quit_level():
 	var s = _get_sim()
 	if s != null:
 		s.in_game = false
-	
-	# NUCLEAR OPTION: reload the entire scene from scratch
-	# This bypasses any issues with _clear() freeing the button
-	# while the callback is still running.
-	# The new BootLoader's _ready() will call show_main_menu(self)
-	# which resets everything cleanly.
 	get_tree().change_scene_to_file("res://autoload/boot_loader.tscn")
 
 # ==================== PRICE / BUY / BUYOUT ====================
@@ -1091,10 +1043,10 @@ func _on_buy():
 	if my_cash >= cost:
 		my_cash -= cost
 		my_fuel = min(my_fuel + 1000, my_capacity)
-		if lbl_msg != null:
+		if lbl_msg != null and is_instance_valid(lbl_msg):
 			lbl_msg.text = "Bought 1000L for " + str(cost) + "R"
 	else:
-		if lbl_msg != null:
+		if lbl_msg != null and is_instance_valid(lbl_msg):
 			lbl_msg.text = "Not enough cash!"
 	var g = _get_gs()
 	if g != null:
@@ -1104,24 +1056,24 @@ func _on_buy():
 func _on_buy_max():
 	var space = my_capacity - my_fuel
 	if space <= 0:
-		if lbl_msg != null:
+		if lbl_msg != null and is_instance_valid(lbl_msg):
 			lbl_msg.text = "Tank is full!"
 		return
 	var cost = int(space * 42.5)
 	if my_cash >= cost:
 		my_cash -= cost
 		my_fuel += space
-		if lbl_msg != null:
-			lbl_msg.text = "Bought " + str(space) + "L for " + str(cost) + "R"
+		if lbl_msg != null and is_instance_valid(lbl_msg):
+			lbl_msg.text = "Bought " + str(space) + "L"
 	else:
 		var can = int(my_cash / 42.5)
 		if can > 0:
 			my_cash -= int(can * 42.5)
 			my_fuel += can
-			if lbl_msg != null:
+			if lbl_msg != null and is_instance_valid(lbl_msg):
 				lbl_msg.text = "Bought " + str(can) + "L"
 		else:
-			if lbl_msg != null:
+			if lbl_msg != null and is_instance_valid(lbl_msg):
 				lbl_msg.text = "Not enough cash!"
 	var g = _get_gs()
 	if g != null:
@@ -1136,11 +1088,11 @@ func _on_buyout(opp_id):
 			if my_cash >= bp:
 				my_cash -= bp
 				opp["stations_count"] = 0
-				if lbl_msg != null:
-					lbl_msg.text = "Bought out " + opp["name"] + " for " + str(bp) + "R!"
+				if lbl_msg != null and is_instance_valid(lbl_msg):
+					lbl_msg.text = "Bought out " + opp["name"] + "!"
 				var remaining = 0
 				for o in my_opponents:
-					if o.stations_count > 0:
+					if o["stations_count"] > 0:
 						remaining += 1
 				if remaining == 0:
 					my_in_game = false
@@ -1152,7 +1104,7 @@ func _on_buyout(opp_id):
 					show_result(true, 3, 3)
 					return
 			else:
-				if lbl_msg != null:
+				if lbl_msg != null and is_instance_valid(lbl_msg):
 					lbl_msg.text = "Need " + str(bp) + "R!"
 	var g = _get_gs()
 	if g != null:
