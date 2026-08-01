@@ -1,18 +1,17 @@
-## BootLoader.gd — v0.1.44: robust boot with call_deferred
-## CRITICAL: This script must NEVER crash in _ready().
-## Previous v0.1.43 showed diagnostic screen at step 3, then crashed
-## when calling gs.init_state(self) — likely because data.name / data.color
-## dot notation on Dictionary conflicts with built-in properties on Android.
-## Fix: 
-## 1. Show simple "Loading..." screen in _ready()
-## 2. Use call_deferred() for init and menu transition
-## 3. GameState now uses bracket notation for all dict access
-## 4. If boot fails, show error screen with CONTINUE button
+## BootLoader.gd — v0.1.45: step-by-step boot with diagnostics
+## CRITICAL: Previous v0.1.44 stuck on "Loading..." because _boot_continue()
+## crashed silently. Now each boot step runs in a separate _process() frame,
+## with visible step counter. If a step crashes, user sees which step failed.
+## After 3 seconds, a CONTINUE button appears as fallback.
 extends Control
 
 var font = null
 var boot_step = 0
 var boot_error = ""
+var _boot_phase = 0
+var _boot_timer = 0.0
+var _loading_label = null
+var _continue_btn = null
 
 func _ready():
 	# STEP 0: Clear default tscn children
@@ -27,35 +26,45 @@ func _ready():
 	_load_font()
 	boot_step = 3
 	
-	# STEP 3: Show simple "Loading..." screen
+	# STEP 3: Show loading screen with step counter
 	_show_loading_screen()
 	boot_step = 4
 	
-	# STEP 4: Continue boot in next frame via call_deferred
-	# This ensures _ready() completes without errors
-	call_deferred("_boot_continue")
+	# Start boot in _process() instead of call_deferred
+	_boot_phase = 1
 
-func _boot_continue():
-	# STEP 5: Try to init GameState
-	boot_step = 5
-	var gs = _safe_get_node("/root/GameState")
-	if gs != null and gs.has_method("init_state"):
-		gs.init_state(self)
-	boot_step = 6
+func _process(delta):
+	_boot_timer += delta
 	
-	# STEP 6: Try to load main menu via UIRenderer
-	var ui = _safe_get_node("/root/UIRenderer")
-	if ui != null and ui.has_method("show_main_menu"):
-		ui.show_main_menu(self)
+	if _boot_phase == 1:
+		_boot_phase = 2  # Set BEFORE calling to prevent retry loop
+		_update_loading("Step 1: Init GameState...")
+		boot_step = 5
+		var gs = _safe_get_node("/root/GameState")
+		if gs != null and gs.has_method("init_state"):
+			gs.init_state(self)
+		boot_step = 6
+		_update_loading("Step 2: Load main menu...")
+		_boot_phase = 3
+	
+	elif _boot_phase == 3:
+		_boot_phase = 4  # Set BEFORE calling
 		boot_step = 7
-		return
+		var ui = _safe_get_node("/root/UIRenderer")
+		if ui != null and ui.has_method("show_main_menu"):
+			ui.show_main_menu(self)
+			boot_step = 8
+			_boot_phase = 100  # Done
+			return
+		boot_error = "UIRenderer missing"
+		_update_loading("ERROR: " + boot_error)
+		_boot_phase = 5
 	
-	# If we get here, show error screen with CONTINUE button
-	boot_error = "UIRenderer not found or has no show_main_menu"
-	_show_error_screen()
+	# Show CONTINUE button after 3 seconds if boot is stuck
+	if _boot_timer > 3.0 and _boot_phase < 100 and _continue_btn == null:
+		_show_continue_button()
 
 func _show_loading_screen():
-	# Simple loading screen — no diagnostic info, just "Loading..."
 	var sw = 1920
 	var sh = 1080
 	var vp = get_viewport()
@@ -75,18 +84,56 @@ func _show_loading_screen():
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bg)
 	
-	var lbl = Label.new()
-	lbl.text = "NEFTEGORSK v0.1.44\nLoading..."
-	lbl.position = Vector2(0, sh / 2 - 60)
-	lbl.size = Vector2(sw, 120)
-	lbl.add_theme_font_size_override("font_size", 36)
-	lbl.add_theme_color_override("font_color", Color(1, 0.85, 0.2))
-	lbl.horizontal_alignment = 1
-	lbl.vertical_alignment = 1
-	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_loading_label = Label.new()
+	_loading_label.text = "NEFTEGORSK v0.1.45\nLoading..."
+	_loading_label.position = Vector2(0, sh / 2 - 80)
+	_loading_label.size = Vector2(sw, 160)
+	_loading_label.add_theme_font_size_override("font_size", 32)
+	_loading_label.add_theme_color_override("font_color", Color(1, 0.85, 0.2))
+	_loading_label.horizontal_alignment = 1
+	_loading_label.vertical_alignment = 1
+	_loading_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if font != null:
-		lbl.add_theme_font_override("font", font)
-	add_child(lbl)
+		_loading_label.add_theme_font_override("font", font)
+	add_child(_loading_label)
+
+func _update_loading(text):
+	if _loading_label != null and is_instance_valid(_loading_label):
+		_loading_label.text = "NEFTEGORSK v0.1.45\n" + text + "\nStep: " + str(boot_step)
+
+func _show_continue_button():
+	if _continue_btn != null:
+		return
+	var sw = 1920
+	var sh = 1080
+	var vp = get_viewport()
+	if vp != null:
+		var rect = vp.get_visible_rect()
+		sw = int(rect.size.x)
+		sh = int(rect.size.y)
+	if sw < 100:
+		sw = 1920
+	if sh < 100:
+		sh = 1080
+	
+	_continue_btn = Button.new()
+	_continue_btn.text = "CONTINUE"
+	_continue_btn.position = Vector2((sw - 400) / 2, sh - 200)
+	_continue_btn.size = Vector2(400, 80)
+	_continue_btn.add_theme_font_size_override("font_size", 32)
+	if font != null:
+		_continue_btn.add_theme_font_override("font", font)
+	_continue_btn.pressed.connect(_on_continue_pressed)
+	add_child(_continue_btn)
+
+func _on_continue_pressed():
+	# Retry boot
+	_boot_phase = 1
+	_boot_timer = 0.0
+	if _continue_btn != null and is_instance_valid(_continue_btn):
+		remove_child(_continue_btn)
+		_continue_btn.free()
+	_continue_btn = null
 
 func _safe_clear_children():
 	var children = get_children()
@@ -109,49 +156,3 @@ func _safe_get_node(path):
 	if node != null and not is_instance_valid(node):
 		return null
 	return node
-
-func _show_error_screen():
-	_safe_clear_children()
-	var sw = 1920
-	var sh = 1080
-	var vp = get_viewport()
-	if vp != null:
-		var rect = vp.get_visible_rect()
-		sw = int(rect.size.x)
-		sh = int(rect.size.y)
-	if sw < 100:
-		sw = 1920
-	if sh < 100:
-		sh = 1080
-	
-	var bg = ColorRect.new()
-	bg.color = Color(0.15, 0.04, 0.04)
-	bg.size = Vector2(sw, sh)
-	bg.position = Vector2(0, 0)
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(bg)
-	
-	var lbl = Label.new()
-	lbl.text = "NEFTEGORSK v0.1.44\n\nBOOT ERROR!\n\nStep: " + str(boot_step) + "\nError: " + boot_error + "\n\nPress CONTINUE to retry."
-	lbl.position = Vector2(40, 100)
-	lbl.size = Vector2(sw - 80, 800)
-	lbl.add_theme_font_size_override("font_size", 24)
-	lbl.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
-	if font != null:
-		lbl.add_theme_font_override("font", font)
-	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(lbl)
-	
-	var btn = Button.new()
-	btn.text = "CONTINUE"
-	btn.position = Vector2((sw - 400) / 2, sh - 200)
-	btn.size = Vector2(400, 80)
-	btn.add_theme_font_size_override("font_size", 32)
-	if font != null:
-		btn.add_theme_font_override("font", font)
-	btn.pressed.connect(_on_continue_pressed)
-	add_child(btn)
-
-func _on_continue_pressed():
-	# Retry the boot process
-	call_deferred("_boot_continue")
